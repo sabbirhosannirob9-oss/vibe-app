@@ -1,5 +1,5 @@
 /* ============================================
-   VIBE — Main App Logic (SPA) — 5 TABS + FEED
+   VIBE — Main App Logic (SPA) — FIXED VERSION
    ============================================
    Navigation, Feed, Matches, Chats, Profile,
    Settings, Chat Room, Realtime, Mood, Gifts
@@ -30,7 +30,8 @@ const app = {
   giftStats: null,
   _settingsInited: false,
   _navInited: false,
-  _profileTabsInited: false
+  _profileTabsInited: false,
+  _initDone: false
 };
 
 // ============================================
@@ -54,7 +55,8 @@ const app = {
 
     await updateLastSeen();
     await loadCurrentMood();
-    hideAppLoading();
+
+    // Setup all handlers BEFORE loading data
     renderProfileView();
     setupNavigation();
     setupMoodModal();
@@ -65,14 +67,29 @@ const app = {
     setupPostSystem();
     renderEmptyStates();
 
-    await Promise.all([
+    // Hide loading spinner
+    hideAppLoading();
+
+    // Make sure feed view is active from start
+    const urlHash = window.location.hash.replace('#', '');
+    const validHash = ['feed', 'matches', 'chats', 'profile', 'settings'].includes(urlHash);
+    const startView = validHash ? urlHash : 'feed';
+
+    switchView(startView, false);
+
+    // Load all data in parallel
+    await Promise.allSettled([
       loadFeed(),
       loadMatches(),
       loadGiftStats(),
-      loadActiveUsers()
+      loadActiveUsers(),
+      loadChats()
     ]);
-    await loadChats();
 
+    // Mark init complete
+    app._initDone = true;
+
+    // Periodic tasks
     setInterval(updateLastSeen, 2 * 60 * 1000);
     setInterval(loadActiveUsers, 60 * 1000);
 
@@ -85,6 +102,7 @@ const app = {
 
   } catch (err) {
     console.error('App init error:', err);
+    hideAppLoading();
     showToast('Something went wrong. Please reload.', 'error');
   }
 })();
@@ -148,7 +166,7 @@ function emptyMoodHTML() {
 }
 
 // ============================================
-// NAVIGATION (5 tabs)
+// NAVIGATION (5 tabs) — FIXED
 // ============================================
 function setupNavigation() {
   if (app._navInited) return;
@@ -161,15 +179,9 @@ function setupNavigation() {
     });
   });
 
-  const hash = window.location.hash.replace('#', '');
-  const validViews = ['feed', 'matches', 'chats', 'profile', 'settings'];
-  if (validViews.includes(hash)) {
-    switchView(hash);
-  }
-
   window.addEventListener('hashchange', () => {
     const h = window.location.hash.replace('#', '');
-    if (validViews.includes(h) && h !== app.currentView) {
+    if (['feed', 'matches', 'chats', 'profile', 'settings'].includes(h) && h !== app.currentView) {
       switchView(h, false);
     }
   });
@@ -181,67 +193,95 @@ function switchView(view, updateHash = true) {
 
   app.currentView = view;
 
+  // Update nav items
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.view === view);
   });
 
+  // Update views
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const target = document.getElementById('view-' + view);
   if (target) target.classList.add('active');
 
+  // Update hash
   if (updateHash) {
     history.replaceState(null, '', '#' + view);
   }
 
+  // Scroll top
   window.scrollTo({ top: 0, behavior: 'instant' });
 
-  // Lazy loads
+  // Lazy loads (only after init, or force on first)
+  if (view === 'feed') {
+    if (app.feedPosts.length === 0) {
+      loadFeed();
+    } else {
+      renderFeed();
+    }
+  }
+
   if (view === 'chats') {
     if (app.chats.length === 0) loadChats();
     loadActiveUsers();
   }
-  if (view === 'settings') initSettingsView();
+
+  if (view === 'settings') {
+    initSettingsView();
+  }
+
   if (view === 'profile') {
     loadGiftStats();
     if (app.profileTab === 'posts') loadMyPosts();
   }
-  if (view === 'feed' && app.feedPosts.length === 0) loadFeed();
+
+  if (view === 'matches') {
+    if (app.matches.length === 0 && app.currentMood) {
+      loadMatches();
+    } else {
+      renderMatches();
+    }
+  }
 }
 
 // ============================================
 // LOAD CURRENT MOOD
 // ============================================
 async function loadCurrentMood() {
-  const { data, error } = await sb
-    .from('vibes')
-    .select('*')
-    .eq('user_id', app.user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  try {
+    const { data, error } = await sb
+      .from('vibes')
+      .select('*')
+      .eq('user_id', app.user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (error) {
-    console.error('Load mood error:', error);
-    return;
-  }
+    if (error) {
+      console.error('Load mood error:', error);
+      return;
+    }
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
-  const { count } = await sb
-    .from('vibes')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', app.user.id)
-    .gte('created_at', todayStart.toISOString());
+    const { count } = await sb
+      .from('vibes')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', app.user.id)
+      .gte('created_at', todayStart.toISOString());
 
-  app.moodChangeCount = count || 0;
+    app.moodChangeCount = count || 0;
 
-  if (data) {
-    app.currentMood = data.mood;
-    app.lastMoodChangeAt = new Date(data.created_at);
-    renderMyMood();
-  } else {
-    openMoodModal(true);
+    if (data) {
+      app.currentMood = data.mood;
+      app.lastMoodChangeAt = new Date(data.created_at);
+      renderMyMood();
+    } else {
+      // Delay mood modal open to after app ready
+      setTimeout(() => openMoodModal(true), 800);
+    }
+  } catch (err) {
+    console.error('loadCurrentMood error:', err);
   }
 }
 
@@ -279,6 +319,7 @@ async function loadFeed(reset = true) {
     renderFeed();
   } catch (err) {
     console.error('Load feed error:', err);
+    renderFeed();
   }
 }
 
@@ -445,7 +486,7 @@ function openCreatePost() {
 
 function closeCreatePost() {
   const overlay = document.getElementById('createPostOverlay');
-  overlay.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
   document.body.style.overflow = '';
 }
 
@@ -476,7 +517,7 @@ async function submitPost() {
 }
 
 // ============================================
-// POST MENU (delete)
+// POST MENU
 // ============================================
 function showPostMenu(postId, anchorBtn) {
   document.querySelectorAll('.post-menu-popup').forEach(p => p.remove());
@@ -570,7 +611,7 @@ async function openCommentSheet(postId) {
 
 function closeCommentSheet() {
   const overlay = document.getElementById('commentSheetOverlay');
-  overlay.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
   document.body.style.overflow = '';
   app.currentPostId = null;
 }
@@ -742,7 +783,6 @@ async function loadActiveUsers() {
 
     let users = data || [];
 
-    // Filter by same mood
     if (app.currentMood && users.length > 0) {
       const userIds = users.map(u => u.id);
       const { data: vibes } = await sb
@@ -1011,7 +1051,7 @@ function setupChatRoom() {
   if (input) {
     input.addEventListener('input', () => {
       const hasText = input.value.trim().length > 0;
-      sendBtn.disabled = !hasText;
+      if (sendBtn) sendBtn.disabled = !hasText;
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 120) + 'px';
     });
@@ -1019,7 +1059,7 @@ function setupChatRoom() {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        if (!sendBtn.disabled) sendMessage();
+        if (sendBtn && !sendBtn.disabled) sendMessage();
       }
     });
   }
@@ -1423,8 +1463,6 @@ function renderProfileView() {
   } else {
     if (interestsSection) interestsSection.style.display = 'none';
   }
-
-  loadMyPosts();
 }
 
 // ============================================
