@@ -66,7 +66,6 @@
 
   <div class="feed-inner">
     <div class="feed-list" id="feedList">
-      <!-- Skeleton loading -->
       <div class="post-skeleton">
         <div class="post-skeleton-header">
           <div class="post-skeleton-avatar"></div>
@@ -108,7 +107,6 @@
 <section class="view" id="view-matches">
   <div class="view-inner">
 
-    <!-- Gift Claim Banner -->
     <div class="gift-claim-banner" id="giftClaimBanner" style="display: none;">
       <div class="gift-claim-icon" id="giftClaimIcon"></div>
       <div class="gift-claim-info">
@@ -122,7 +120,6 @@
       </div>
     </div>
 
-    <!-- My Mood Card -->
     <div class="my-mood-card" id="myMoodCard">
       <div class="my-mood-emoji" id="myMoodEmoji">😊</div>
       <div class="my-mood-info">
@@ -150,22 +147,18 @@
 </section>
 
 <!-- ============================================
-     VIEW 3 — CHATS (with Active Users section)
+     VIEW 3 — CHATS
 ============================================ -->
 <section class="view" id="view-chats">
   <div class="view-inner">
 
-    <!-- Active Now Section -->
     <div class="section-header" style="margin-top: 4px;">
       <h2>Active Now</h2>
       <span class="section-header-count" id="activeCount">—</span>
     </div>
 
-    <div class="active-users" id="activeUsers">
-      <!-- Active user items injected by JS -->
-    </div>
+    <div class="active-users" id="activeUsers"></div>
 
-    <!-- Chats Section -->
     <div class="section-header" style="margin-top: 24px;">
       <h2>Your Chats</h2>
     </div>
@@ -182,7 +175,7 @@
 </section>
 
 <!-- ============================================
-     VIEW 4 — PROFILE (with Posts/About/Gifts tabs)
+     VIEW 4 — PROFILE
 ============================================ -->
 <section class="view" id="view-profile">
   <div class="view-inner">
@@ -194,7 +187,6 @@
       <p class="profile-bio" id="profileBio"></p>
     </div>
 
-    <!-- Gift Stats Card -->
     <div class="gift-stats-card" id="giftStatsCard" style="display: none;">
       <div class="gift-stats-header">
         <div class="gift-stats-title">Your Rewards</div>
@@ -237,14 +229,12 @@
       </div>
     </div>
 
-    <!-- Profile Tabs -->
     <div class="profile-tabs" id="profileTabs">
       <button class="profile-tab active" data-tab="posts">Posts</button>
       <button class="profile-tab" data-tab="about">About</button>
       <button class="profile-tab" data-tab="gifts">Gifts</button>
     </div>
 
-    <!-- Posts Tab -->
     <div class="profile-tab-content active" id="tab-posts">
       <div class="feed-list" id="myPostsList">
         <div class="post-skeleton">
@@ -260,7 +250,6 @@
       </div>
     </div>
 
-    <!-- About Tab -->
     <div class="profile-tab-content" id="tab-about">
 
       <div class="profile-section" id="interestsSection" style="display: none;">
@@ -341,7 +330,6 @@
       </div>
     </div>
 
-    <!-- Gifts Tab -->
     <div class="profile-tab-content" id="tab-gifts">
       <div class="profile-gifts-section" id="recentGiftsSection" style="display: none;">
         <div class="profile-gifts-header">
@@ -359,7 +347,7 @@
     </div>
 
     <p style="text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 16px 0;">
-      Vibe v1.0.0
+      Vibe v2.1.0
     </p>
 
   </div>
@@ -394,39 +382,30 @@
     </div>
 
     <div class="settings-section">
-      <div class="settings-section-title">Preferences</div>
+      <div class="settings-section-title">Notifications</div>
 
-      <div class="settings-row" id="notificationsRow">
-        <div class="settings-row-icon blue">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
+      <div class="settings-row-toggle">
+        <div class="settings-row-toggle-info">
+          <div class="settings-row-toggle-label">Push Notifications</div>
+          <div class="settings-row-toggle-desc">Get notified about new messages</div>
         </div>
-        <div class="settings-row-content">
-          <div class="settings-row-label">Notifications</div>
-          <div class="settings-row-description">Coming soon</div>
-        </div>
-        <div class="settings-row-value">Off</div>
+        <button class="switch" id="notificationsToggle" aria-label="Toggle notifications"></button>
       </div>
 
-      <div class="settings-row" id="languageRow">
-        <div class="settings-row-icon green">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-          </svg>
+      <div class="settings-row-toggle">
+        <div class="settings-row-toggle-info">
+          <div class="settings-row-toggle-label">Sound</div>
+          <div class="settings-row-toggle-desc">Play sound for new messages</div>
         </div>
-        <div class="settings-row-content">
-          <div class="settings-row-label">Language</div>
+        <button class="switch on" id="soundToggle" aria-label="Toggle sound"></button>
+      </div>
+
+      <div class="settings-row-toggle">
+        <div class="settings-row-toggle-info">
+          <div class="settings-row-toggle-label">Vibration</div>
+          <div class="settings-row-toggle-desc">Vibrate for new messages</div>
         </div>
-        <div class="settings-row-value">English</div>
-        <div class="settings-row-arrow">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </div>
+        <button class="switch on" id="vibrationToggle" aria-label="Toggle vibration"></button>
       </div>
     </div>
 
@@ -442,7 +421,7 @@
         </div>
         <div class="settings-row-content">
           <div class="settings-row-label">Blocked Users</div>
-          <div class="settings-row-description">Manage blocked list</div>
+          <div class="settings-row-desc" id="blockedCountDesc">Manage blocked list</div>
         </div>
         <div class="settings-row-arrow">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -459,7 +438,7 @@
         </div>
         <div class="settings-row-content">
           <div class="settings-row-label">Safety Center</div>
-          <div class="settings-row-description">Tips and guidelines</div>
+          <div class="settings-row-desc">Tips and guidelines</div>
         </div>
         <div class="settings-row-arrow">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -514,7 +493,7 @@
           <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
           <span>Vibe</span>
         </div>
-        <span>v1.0.0</span>
+        <span>v2.1.0</span>
       </div>
     </div>
 
@@ -530,7 +509,7 @@
 </section>
 
 <!-- ============================================
-     BOTTOM NAVIGATION (5 tabs)
+     BOTTOM NAVIGATION
 ============================================ -->
 <nav class="bottom-nav" id="bottomNav">
 
@@ -576,7 +555,7 @@
 </nav>
 
 <!-- ============================================
-     CHAT ROOM
+     CHAT ROOM (Full Screen)
 ============================================ -->
 <div class="chat-room" id="chatRoom">
 
@@ -595,9 +574,36 @@
         <span>Offline</span>
       </div>
     </div>
+    <button class="chat-header-action" id="chatMenuBtn" aria-label="Chat menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="1"></circle>
+        <circle cx="12" cy="5" r="1"></circle>
+        <circle cx="12" cy="19" r="1"></circle>
+      </svg>
+    </button>
   </div>
 
   <div class="chat-messages" id="chatMessages"></div>
+
+  <!-- Reply Preview Bar -->
+  <div class="reply-preview-bar" id="replyPreviewBar" style="display: none;">
+    <div class="reply-preview-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 17 4 12 9 7"></polyline>
+        <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+      </svg>
+    </div>
+    <div class="reply-preview-content">
+      <div class="reply-preview-name">Replying to</div>
+      <div class="reply-preview-text">message text</div>
+    </div>
+    <button class="reply-preview-close" id="replyPreviewClose" aria-label="Cancel reply">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
 
   <div class="chat-input-bar">
     <textarea
@@ -622,9 +628,7 @@
 ============================================ -->
 <div class="modal-overlay" id="moodModal">
   <div class="modal-sheet">
-
     <div class="modal-handle"></div>
-
     <h2 class="modal-title" id="moodModalTitle">How are you feeling?</h2>
     <p class="modal-subtitle" id="moodModalSubtitle">Pick the mood that fits you right now.</p>
 
@@ -662,7 +666,6 @@
         Confirm Mood
       </button>
     </div>
-
   </div>
 </div>
 
@@ -681,17 +684,12 @@
     </div>
 
     <div class="gift-popup-rarity" id="giftPopupRarity">Common</div>
-
     <h2 class="gift-popup-name" id="giftPopupName">Silver Star</h2>
-
     <p class="gift-popup-message" id="giftPopupMessage">You got a new gift today!</p>
 
     <div class="gift-popup-milestone" id="giftPopupMilestone" style="display: none;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
         <path d="M7 3H17V7C17 10 15 12 12 12C9 12 7 10 7 7V3Z" fill="#FBBF24"/>
-        <path d="M7 4H4V7C4 9 5.5 10 7 10V4Z" fill="#FBBF24"/>
-        <path d="M17 4H20V7C20 9 18.5 10 17 10V4Z" fill="#FBBF24"/>
-        <rect x="9" y="12" width="6" height="4" fill="#D97706"/>
         <rect x="7" y="16" width="10" height="3" rx="0.5" fill="#92400E"/>
         <rect x="6" y="19" width="12" height="2" rx="0.5" fill="#78350F"/>
       </svg>
@@ -699,7 +697,7 @@
     </div>
 
     <div class="gift-popup-streak" id="giftPopupStreak">
-      <svg class="gift-popup-streak-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg class="gift-popup-streak-icon" viewBox="0 0 24 24" fill="none">
         <path d="M12 2C10 8 6 9 6 14C6 17.314 8.686 20 12 20C15.314 20 18 17.314 18 14C18 9 14 8 12 2ZM12 17C10.343 17 9 15.657 9 14C9 12 10 11 12 8C14 11 15 12 15 14C15 15.657 13.657 17 12 17Z" fill="#F59E0B"/>
       </svg>
       <div class="gift-popup-streak-text">
@@ -781,6 +779,88 @@
 </div>
 
 <!-- ============================================
+     CHAT MENU SHEET (Block/Report)
+============================================ -->
+<div class="sheet-overlay" id="chatMenuSheet">
+  <div class="sheet-modal">
+    <div class="sheet-handle"></div>
+
+    <div class="sheet-options" id="chatMenuOptions">
+      <!-- Injected by JS -->
+    </div>
+
+    <button class="sheet-cancel" id="chatMenuCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ============================================
+     BLOCKED USERS SHEET
+============================================ -->
+<div class="sheet-overlay" id="blockedUsersSheet">
+  <div class="sheet-modal">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title">Blocked Users</h2>
+    <p class="sheet-subtitle">Users you've blocked can't message you.</p>
+
+    <div id="blockedUsersList">
+      <div style="text-align: center; padding: 24px;">
+        <div class="spinner" style="margin: 0 auto;"></div>
+      </div>
+    </div>
+
+    <button class="sheet-cancel" id="blockedUsersClose" style="margin-top: 16px;">Close</button>
+  </div>
+</div>
+
+<!-- ============================================
+     REPORT USER SHEET
+============================================ -->
+<div class="sheet-overlay" id="reportSheet">
+  <div class="sheet-modal">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title">Report User</h2>
+    <p class="sheet-subtitle">Help us keep Vibe safe. Why are you reporting this user?</p>
+
+    <div class="report-reasons" id="reportReasons">
+      <button class="report-reason" data-reason="Spam or scam">
+        <div class="report-reason-radio"></div>
+        <span class="report-reason-text">Spam or scam</span>
+      </button>
+      <button class="report-reason" data-reason="Harassment or bullying">
+        <div class="report-reason-radio"></div>
+        <span class="report-reason-text">Harassment or bullying</span>
+      </button>
+      <button class="report-reason" data-reason="Inappropriate content">
+        <div class="report-reason-radio"></div>
+        <span class="report-reason-text">Inappropriate content</span>
+      </button>
+      <button class="report-reason" data-reason="Fake profile">
+        <div class="report-reason-radio"></div>
+        <span class="report-reason-text">Fake profile</span>
+      </button>
+      <button class="report-reason" data-reason="Other">
+        <div class="report-reason-radio"></div>
+        <span class="report-reason-text">Other</span>
+      </button>
+    </div>
+
+    <textarea
+      class="report-textarea"
+      id="reportDetails"
+      placeholder="Add details (optional)"
+      maxlength="300"
+      rows="3"
+    ></textarea>
+
+    <button class="btn btn-primary btn-block" id="reportSubmitBtn" disabled style="margin-bottom: 8px;">
+      Submit Report
+    </button>
+
+    <button class="sheet-cancel" id="reportCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ============================================
      CONFETTI CONTAINER
 ============================================ -->
 <div class="confetti-container" id="confettiContainer"></div>
@@ -798,5 +878,6 @@
 <script src="js/posts.js"></script>
 <script src="js/app.js"></script>
 <script src="js/pwa.js"></script>
+
 </body>
 </html>
