@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="description" content="Create your Vibe account">
+<title>Sign Up — Vibe</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="icon" href="assets/icons/favicon.ico">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/global.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+<div class="auth-container">
+
+  <div class="auth-header">
+    <a href="index.html" class="auth-back" aria-label="Back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+    </a>
+
+    <div class="auth-logo">
+      <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
+      <span>Vibe</span>
+    </div>
+
+    <h1 class="auth-title">Create account</h1>
+    <p class="auth-subtitle">Join Vibe and meet people on your wavelength.</p>
+  </div>
+
+  <div class="auth-body">
+    <div class="auth-error" id="authError"></div>
+
+    <form class="auth-form" id="registerForm" autocomplete="on">
+
+      <!-- Name -->
+      <div class="input-group">
+        <span class="input-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </span>
+        <input
+          type="text"
+          id="name"
+          class="form-input"
+          placeholder="Your name"
+          autocomplete="name"
+          maxlength="30"
+          required
+        >
+      </div>
+
+      <!-- Email -->
+      <div class="input-group">
+        <span class="input-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+        </span>
+        <input
+          type="email"
+          id="email"
+          class="form-input"
+          placeholder="Email address"
+          autocomplete="email"
+          required
+        >
+      </div>
+
+      <!-- Password -->
+      <div>
+        <div class="input-group">
+          <span class="input-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </span>
+          <input
+            type="password"
+            id="password"
+            class="form-input"
+            placeholder="Password (min 6 chars)"
+            autocomplete="new-password"
+            required
+          >
+          <button type="button" class="input-toggle" onclick="togglePassword('password', this)" aria-label="Show password">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+        <div class="password-hint" id="passHint">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span>At least 6 characters</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block auth-submit" id="submitBtn">
+        Create Account
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </button>
+
+      <p class="auth-terms">
+        By signing up, you agree to our
+        <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+      </p>
+
+    </form>
+  </div>
+
+  <div class="auth-footer">
+    Already have an account? <a href="login.html">Sign in</a>
+  </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+
+<script>
+(async () => {
+  // If already logged in → redirect
+  await redirectIfLoggedIn();
+
+  const form = document.getElementById('registerForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const nameInput = document.getElementById('name');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const passHint = document.getElementById('passHint');
+
+  // Live password strength
+  passwordInput.addEventListener('input', () => {
+    const val = passwordInput.value;
+    if (val.length === 0) {
+      passHint.className = 'password-hint';
+      passHint.querySelector('span').textContent = 'At least 6 characters';
+    } else if (val.length < 6) {
+      passHint.className = 'password-hint invalid';
+      passHint.querySelector('span').textContent = `${6 - val.length} more character(s) needed`;
+    } else {
+      passHint.className = 'password-hint valid';
+      passHint.querySelector('span').textContent = 'Looks good!';
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideAuthError();
+
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    // Validate
+    const nameErr = validateName(name);
+    if (nameErr) return showAuthError(nameErr);
+
+    const emailErr = validateEmail(email);
+    if (emailErr) return showAuthError(emailErr);
+
+    const passErr = validatePassword(password);
+    if (passErr) return showAuthError(passErr);
+
+    setButtonLoading(submitBtn, true);
+
+    try {
+      const result = await signUp(email, password, name);
+
+      // If email confirmation is on, session will be null
+      if (!result.session) {
+        showToast('Check your email to confirm your account 📧', 'success');
+        setButtonLoading(submitBtn, false);
+        // Optionally show success screen
+        setTimeout(() => {
+          document.querySelector('.auth-body').innerHTML = `
+            <div class="success-screen">
+              <div class="success-icon">📧</div>
+              <h2 class="success-title">Check your email</h2>
+              <p class="success-text">
+                We sent a confirmation link to <strong>${email}</strong>.
+                Click it to activate your account.
+              </p>
+              <a href="login.html" class="btn btn-secondary btn-block">Back to Sign In</a>
+            </div>
+          `;
+        }, 400);
+      } else {
+        // Auto-confirm is ON — session exists
+        showToast('Account created! 🎉', 'success');
+        setTimeout(() => {
+          window.location.href = 'setup.html';
+        }, 600);
+      }
+    } catch (err) {
+      console.error('Register error:', err);
+      showAuthError(translateAuthError(err));
+      setButtonLoading(submitBtn, false);
+    }
+  });
+
+  [nameInput, emailInput, passwordInput].forEach(inp => {
+    inp.addEventListener('input', hideAuthError);
+  });
+})();
+</script>
+
+</body>
+</html>

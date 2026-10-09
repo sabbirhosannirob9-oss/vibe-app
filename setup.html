@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="description" content="Set up your Vibe profile">
+<title>Setup Profile — Vibe</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="icon" href="assets/icons/favicon.ico">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/global.css">
+<link rel="stylesheet" href="css/auth.css">
+
+<style>
+/* ============================================
+   SETUP PAGE — Multi-step Styles
+============================================ */
+
+/* Progress bar (top) */
+.progress-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--border-light);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gradient-primary);
+  width: 33%;
+  transition: width 0.4s var(--ease);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Step container */
+.step-view {
+  display: none;
+  animation: fadeUp 0.4s var(--ease);
+}
+.step-view.active { display: block; }
+
+/* Step header */
+.step-header {
+  margin-bottom: 28px;
+}
+
+.step-count {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.step-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+
+.step-subtitle {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Form spacing */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+/* Age + Gender row */
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Gender selector */
+.gender-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.gender-btn {
+  padding: 14px 8px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1.5px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.2s var(--ease);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gender-btn .emoji {
+  font-size: 22px;
+}
+
+.gender-btn:active {
+  transform: scale(0.96);
+}
+
+.gender-btn.selected {
+  background: var(--primary-lighter);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Interests chips */
+.interests-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.interest-chip {
+  padding: 10px 16px;
+  border-radius: 100px;
+  background: var(--bg-secondary);
+  border: 1.5px solid transparent;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s var(--ease);
+  cursor: pointer;
+  user-select: none;
+}
+
+.interest-chip:active {
+  transform: scale(0.94);
+}
+
+.interest-chip.selected {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.25);
+}
+
+.interest-limit {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+  text-align: right;
+}
+
+.interest-limit.warn {
+  color: var(--warning);
+}
+
+/* Mood selector (big buttons) */
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.mood-card {
+  padding: 20px 12px;
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s var(--ease);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.mood-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-primary);
+  opacity: 0;
+  transition: opacity 0.25s;
+  z-index: 0;
+}
+
+.mood-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mood-card:active {
+  transform: scale(0.96);
+}
+
+.mood-card .mood-emoji {
+  font-size: 36px;
+  transition: transform 0.3s var(--ease);
+}
+
+.mood-card .mood-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: color 0.25s;
+}
+
+.mood-card.selected {
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(37,99,235,0.2);
+}
+
+.mood-card.selected::before {
+  opacity: 1;
+}
+
+.mood-card.selected .mood-label {
+  color: white;
+}
+
+.mood-card.selected .mood-emoji {
+  transform: scale(1.15);
+}
+
+/* Bottom action bar */
+.setup-actions {
+  position: sticky;
+  bottom: 0;
+  padding: 20px 0;
+  margin-top: 24px;
+  background: linear-gradient(180deg, transparent 0%, #F8F9FC 30%);
+  display: flex;
+  gap: 10px;
+}
+
+.setup-actions .btn {
+  flex: 1;
+}
+
+.btn-back-step {
+  flex: 0 0 auto !important;
+  width: 52px;
+  min-width: 52px;
+  padding: 0;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Bio counter */
+.bio-counter {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: right;
+  margin-top: 6px;
+}
+
+/* Custom select */
+.select-wrap {
+  position: relative;
+}
+
+.select-wrap::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select-wrap .form-input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 44px;
+  cursor: pointer;
+}
+
+/* Loading state for whole page */
+.page-loading {
+  position: fixed;
+  inset: 0;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.3s;
+}
+
+.page-loading.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Success screen */
+.setup-success {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 70vh;
+  gap: 20px;
+  padding: 40px 24px;
+}
+
+.setup-success.show {
+  display: flex;
+  animation: fadeUp 0.5s var(--ease);
+}
+
+.success-emoji {
+  font-size: 72px;
+  animation: float 2.5s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+
+<!-- Page Loading -->
+<div class="page-loading" id="pageLoading">
+  <div class="spinner spinner-lg"></div>
+</div>
+
+<!-- Progress Bar -->
+<div class="progress-bar">
+  <div class="progress-fill" id="progressFill" style="width: 33%"></div>
+</div>
+
+<div class="auth-container">
+
+  <!-- Header -->
+  <div class="auth-header">
+    <div class="auth-logo">
+      <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
+      <span>Vibe</span>
+    </div>
+  </div>
+
+  <div class="auth-body">
+    <div class="auth-error" id="authError"></div>
+
+    <!-- ============================================
+         STEP 1 — About You
+    ============================================ -->
+    <div class="step-view active" id="step1">
+      <div class="step-header">
+        <span class="step-count">Step 1 of 3</span>
+        <h1 class="step-title">About you</h1>
+        <p class="step-subtitle">Tell us a bit about yourself so we can find the right vibe.</p>
+      </div>
+
+      <div class="form-stack">
+
+        <div>
+          <label class="field-label">Age</label>
+          <input
+            type="number"
+            id="ageInput"
+            class="form-input"
+            placeholder="Your age"
+            min="18"
+            max="99"
+            inputmode="numeric"
+          >
+          <p class="form-hint">You must be 18 or older.</p>
+        </div>
+
+        <div>
+          <label class="field-label">Gender</label>
+          <div class="gender-options" id="genderOptions">
+            <button type="button" class="gender-btn" data-value="male">
+              <span class="emoji">👨</span>
+              <span>Male</span>
+            </button>
+            <button type="button" class="gender-btn" data-value="female">
+              <span class="emoji">👩</span>
+              <span>Female</span>
+            </button>
+            <button type="button" class="gender-btn" data-value="other">
+              <span class="emoji">🌈</span>
+              <span>Other</span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label">City</label>
+          <div class="select-wrap">
+            <select id="cityInput" class="form-input">
+              <option value="">Select your city</option>
+              <option value="Dhaka">Dhaka</option>
+              <option value="Chattogram">Chattogram</option>
+              <option value="Khulna">Khulna</option>
+              <option value="Rajshahi">Rajshahi</option>
+              <option value="Sylhet">Sylhet</option>
+              <option value="Barishal">Barishal</option>
+              <option value="Rangpur">Rangpur</option>
+              <option value="Mymensingh">Mymensingh</option>
+              <option value="Cox's Bazar">Cox's Bazar</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="setup-actions">
+        <button type="button" class="btn btn-primary" id="nextTo2">
+          Continue
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================================
+         STEP 2 — Interests & Bio
+    ============================================ -->
+    <div class="step-view" id="step2">
+      <div class="step-header">
+        <span class="step-count">Step 2 of 3</span>
+        <h1 class="step-title">Your interests</h1>
+        <p class="step-subtitle">Pick up to 5 things you enjoy. This helps us match you better.</p>
+      </div>
+
+      <div class="form-stack">
+
+        <div>
+          <label class="field-label">Interests (max 5)</label>
+          <div class="interests-wrap" id="interestsWrap">
+            <button type="button" class="interest-chip" data-value="Music">🎵 Music</button>
+            <button type="button" class="interest-chip" data-value="Movies">🎬 Movies</button>
+            <button type="button" class="interest-chip" data-value="Gaming">🎮 Gaming</button>
+            <button type="button" class="interest-chip" data-value="Sports">⚽ Sports</button>
+            <button type="button" class="interest-chip" data-value="Reading">📚 Reading</button>
+            <button type="button" class="interest-chip" data-value="Travel">✈️ Travel</button>
+            <button type="button" class="interest-chip" data-value="Food">🍕 Food</button>
+            <button type="button" class="interest-chip" data-value="Art">🎨 Art</button>
+            <button type="button" class="interest-chip" data-value="Photography">📷 Photography</button>
+            <button type="button" class="interest-chip" data-value="Fitness">💪 Fitness</button>
+            <button type="button" class="interest-chip" data-value="Technology">💻 Technology</button>
+            <button type="button" class="interest-chip" data-value="Nature">🌿 Nature</button>
+            <button type="button" class="interest-chip" data-value="Coffee">☕ Coffee</button>
+            <button type="button" class="interest-chip" data-value="Anime">🌸 Anime</button>
+            <button type="button" class="interest-chip" data-value="Cricket">🏏 Cricket</button>
+            <button type="button" class="interest-chip" data-value="Football">🏈 Football</button>
+          </div>
+          <div class="interest-limit" id="interestLimit">0 / 5 selected</div>
+        </div>
+
+        <div>
+          <label class="field-label">Short bio (optional)</label>
+          <textarea
+            id="bioInput"
+            class="form-textarea"
+            placeholder="Tell people a bit about yourself..."
+            maxlength="150"
+            rows="3"
+          ></textarea>
+          <div class="bio-counter" id="bioCounter">0 / 150</div>
+        </div>
+
+      </div>
+
+      <div class="setup-actions">
+        <button type="button" class="btn btn-back-step" id="backTo1" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+        <button type="button" class="btn btn-primary" id="nextTo3">
+          Continue
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================================
+         STEP 3 — Mood Selector
+    ============================================ -->
+    <div class="step-view" id="step3">
+      <div class="step-header">
+        <span class="step-count">Step 3 of 3</span>
+        <h1 class="step-title">How do you feel today?</h1>
+        <p class="step-subtitle">Pick the mood that best describes you right now. You can change it later.</p>
+      </div>
+
+      <div class="mood-grid" id="moodGrid">
+        <button type="button" class="mood-card" data-mood="happy">
+          <span class="mood-emoji">😊</span>
+          <span class="mood-label">Happy</span>
+        </button>
+        <button type="button" class="mood-card" data-mood="sad">
+          <span class="mood-emoji">😔</span>
+          <span class="mood-label">Sad</span>
+        </button>
+        <button type="button" class="mood-card" data-mood="party">
+          <span class="mood-emoji">🎉</span>
+          <span class="mood-label">Party</span>
+        </button>
+        <button type="button" class="mood-card" data-mood="chill">
+          <span class="mood-emoji">😌</span>
+          <span class="mood-label">Chill</span>
+        </button>
+        <button type="button" class="mood-card" data-mood="tired">
+          <span class="mood-emoji">😴</span>
+          <span class="mood-label">Tired</span>
+        </button>
+        <button type="button" class="mood-card" data-mood="motivated">
+          <span class="mood-emoji">🔥</span>
+          <span class="mood-label">Motivated</span>
+        </button>
+      </div>
+
+      <div class="setup-actions">
+        <button type="button" class="btn btn-back-step" id="backTo2" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+        <button type="button" class="btn btn-primary" id="finishBtn">
+          Finish Setup
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================================
+         SUCCESS SCREEN
+    ============================================ -->
+    <div class="setup-success" id="successScreen">
+      <div class="success-emoji">🎉</div>
+      <h1 class="step-title">You're all set!</h1>
+      <p class="step-subtitle" style="max-width: 300px;">
+        Your profile is ready. Time to meet people on your vibe.
+      </p>
+      <button type="button" class="btn btn-primary" id="goToApp" style="min-width: 220px; margin-top: 8px;">
+        Enter Vibe
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/setup.js"></script>
+
+</body>
+</html>

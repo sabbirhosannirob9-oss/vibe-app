@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="description" content="Sign in to Vibe">
+<title>Sign In — Vibe</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="icon" href="assets/icons/favicon.ico">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/global.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+<div class="auth-container">
+
+  <div class="auth-header">
+    <a href="index.html" class="auth-back" aria-label="Back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+    </a>
+
+    <div class="auth-logo">
+      <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
+      <span>Vibe</span>
+    </div>
+
+    <h1 class="auth-title">Welcome back</h1>
+    <p class="auth-subtitle">Sign in to continue your vibe.</p>
+  </div>
+
+  <div class="auth-body">
+    <div class="auth-error" id="authError"></div>
+
+    <form class="auth-form" id="loginForm" autocomplete="on">
+
+      <div class="input-group">
+        <span class="input-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+        </span>
+        <input
+          type="email"
+          id="email"
+          class="form-input"
+          placeholder="Email address"
+          autocomplete="email"
+          required
+        >
+      </div>
+
+      <div class="input-group">
+        <span class="input-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </span>
+        <input
+          type="password"
+          id="password"
+          class="form-input"
+          placeholder="Password"
+          autocomplete="current-password"
+          required
+        >
+        <button type="button" class="input-toggle" onclick="togglePassword('password', this)" aria-label="Show password">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block auth-submit" id="submitBtn">
+        Sign In
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </button>
+
+    </form>
+  </div>
+
+  <div class="auth-footer">
+    Don't have an account? <a href="register.html">Sign up</a>
+  </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+
+<script>
+(async () => {
+  // If already logged in → redirect
+  await redirectIfLoggedIn();
+
+  const form = document.getElementById('loginForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideAuthError();
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    // Validate
+    const emailErr = validateEmail(email);
+    if (emailErr) return showAuthError(emailErr);
+
+    const passErr = validatePassword(password);
+    if (passErr) return showAuthError(passErr);
+
+    setButtonLoading(submitBtn, true);
+
+    try {
+      await signIn(email, password);
+      showToast('Welcome back! 🎉', 'success');
+      // Redirect after short delay
+      setTimeout(async () => {
+        // Check if profile is complete
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          const profile = await getUserProfile(session.user.id);
+          if (!profile || !profile.city || !profile.age) {
+            window.location.href = 'setup.html';
+          } else {
+            window.location.href = 'app.html';
+          }
+        }
+      }, 600);
+    } catch (err) {
+      console.error('Login error:', err);
+      showAuthError(translateAuthError(err));
+      setButtonLoading(submitBtn, false);
+    }
+  });
+
+  // Clear error on typing
+  [emailInput, passwordInput].forEach(inp => {
+    inp.addEventListener('input', hideAuthError);
+  });
+})();
+</script>
+
+</body>
+</html>

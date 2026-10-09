@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0F1A3D">
+<meta name="description" content="Vibe — Match Your Mood">
+<title>Vibe</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="icon" href="assets/icons/favicon.ico">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/global.css">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/premium.css">
+<link rel="stylesheet" href="css/posts.css">
+
+<script src="js/theme.js"></script>
+</head>
+<body class="app-body">
+
+<!-- ============================================
+     PAGE LOADING
+============================================ -->
+<div id="appLoading" style="position: fixed; inset: 0; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+  <div class="spinner spinner-lg"></div>
+</div>
+
+<!-- ============================================
+     TOP HEADER
+============================================ -->
+<header class="app-header">
+  <div class="app-header-logo">
+    <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
+    <span>Vibe</span>
+  </div>
+  <button class="app-header-action" id="headerAction" aria-label="Search">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+  </button>
+</header>
+
+<!-- ============================================
+     VIEW 1 — FEED
+============================================ -->
+<section class="view" id="view-feed">
+
+  <div class="feed-header">
+    <h1 class="feed-header-title">Feed</h1>
+    <button class="feed-header-refresh" id="feedRefreshBtn" aria-label="Refresh">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div class="feed-inner">
+    <div class="feed-list" id="feedList">
+      <!-- Skeleton loading -->
+      <div class="post-skeleton">
+        <div class="post-skeleton-header">
+          <div class="post-skeleton-avatar"></div>
+          <div style="flex: 1;">
+            <div class="post-skeleton-line" style="width: 40%;"></div>
+            <div class="post-skeleton-line" style="width: 25%; height: 10px;"></div>
+          </div>
+        </div>
+        <div class="post-skeleton-line" style="width: 90%;"></div>
+        <div class="post-skeleton-line" style="width: 60%;"></div>
+      </div>
+      <div class="post-skeleton">
+        <div class="post-skeleton-header">
+          <div class="post-skeleton-avatar"></div>
+          <div style="flex: 1;">
+            <div class="post-skeleton-line" style="width: 35%;"></div>
+            <div class="post-skeleton-line" style="width: 20%; height: 10px;"></div>
+          </div>
+        </div>
+        <div class="post-skeleton-line" style="width: 80%;"></div>
+        <div class="post-skeleton-line" style="width: 70%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Create Post Button -->
+  <button class="fab-create-post" id="fabCreatePost" aria-label="Create post">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </button>
+
+</section>
+
+<!-- ============================================
+     VIEW 2 — MATCHES
+============================================ -->
+<section class="view" id="view-matches">
+  <div class="view-inner">
+
+    <!-- Gift Claim Banner -->
+    <div class="gift-claim-banner" id="giftClaimBanner" style="display: none;">
+      <div class="gift-claim-icon" id="giftClaimIcon"></div>
+      <div class="gift-claim-info">
+        <div class="gift-claim-title">Daily Gift Ready!</div>
+        <div class="gift-claim-subtitle" id="giftClaimSubtitle">Tap to claim your reward</div>
+      </div>
+      <div class="gift-claim-arrow">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </div>
+    </div>
+
+    <!-- My Mood Card -->
+    <div class="my-mood-card" id="myMoodCard">
+      <div class="my-mood-emoji" id="myMoodEmoji">😊</div>
+      <div class="my-mood-info">
+        <div class="my-mood-label">Your mood today</div>
+        <div class="my-mood-name" id="myMoodName">Happy</div>
+        <div class="my-mood-hint" id="myMoodHint">Finding your vibe...</div>
+      </div>
+      <button class="change-mood-btn" id="changeMoodBtn" aria-label="Change mood">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 4v6h-6"></path>
+          <path d="M1 20v-6h6"></path>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="section-header">
+      <h2>People on your vibe</h2>
+      <span class="section-header-count" id="matchesCount">—</span>
+    </div>
+
+    <div class="match-list" id="matchList"></div>
+
+  </div>
+</section>
+
+<!-- ============================================
+     VIEW 3 — CHATS (with Active Users section)
+============================================ -->
+<section class="view" id="view-chats">
+  <div class="view-inner">
+
+    <!-- Active Now Section -->
+    <div class="section-header" style="margin-top: 4px;">
+      <h2>Active Now</h2>
+      <span class="section-header-count" id="activeCount">—</span>
+    </div>
+
+    <div class="active-users" id="activeUsers">
+      <!-- Active user items injected by JS -->
+    </div>
+
+    <!-- Chats Section -->
+    <div class="section-header" style="margin-top: 24px;">
+      <h2>Your Chats</h2>
+    </div>
+
+    <div class="chat-list" id="chatList">
+      <div class="app-empty" id="chatEmpty" style="display: none;">
+        <div class="app-empty-illustration" id="chatEmptyIllustration"></div>
+        <h3 class="app-empty-title">No chats yet</h3>
+        <p class="app-empty-text">Say hi to someone from your matches to start a conversation.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================
+     VIEW 4 — PROFILE (with Posts/About/Gifts tabs)
+============================================ -->
+<section class="view" id="view-profile">
+  <div class="view-inner">
+
+    <div class="profile-hero">
+      <div class="avatar avatar-xl" id="profileAvatar">U</div>
+      <h1 class="profile-name" id="profileName">Loading...</h1>
+      <div class="profile-meta" id="profileMeta"></div>
+      <p class="profile-bio" id="profileBio"></p>
+    </div>
+
+    <!-- Gift Stats Card -->
+    <div class="gift-stats-card" id="giftStatsCard" style="display: none;">
+      <div class="gift-stats-header">
+        <div class="gift-stats-title">Your Rewards</div>
+        <div class="streak-badge" id="streakBadge" style="display: none;">
+          <svg class="fire-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C10 8 6 9 6 14C6 17.314 8.686 20 12 20C15.314 20 18 17.314 18 14C18 9 14 8 12 2ZM12 17C10.343 17 9 15.657 9 14C9 12 10 11 12 8C14 11 15 12 15 14C15 15.657 13.657 17 12 17Z" fill="currentColor"/>
+          </svg>
+          <span class="streak-number" id="streakNumber">0</span>
+          <span style="font-size: 11px; opacity: 0.8;">day streak</span>
+        </div>
+      </div>
+      <div class="gift-stats-row">
+        <div class="gift-stat">
+          <div class="gift-stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 12v10H4V12"></path>
+              <rect x="2" y="7" width="20" height="5"></rect>
+              <line x1="12" y1="22" x2="12" y2="7"></line>
+              <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path>
+              <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="gift-stat-value" id="totalGifts">0</div>
+            <div class="gift-stat-label">Gifts</div>
+          </div>
+        </div>
+        <div class="gift-stat">
+          <div class="gift-stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 21h8M12 17v4M17 5H7V3a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2z"></path>
+              <path d="M17 5h3v3a5 5 0 0 1-5 5h-6a5 5 0 0 1-5-5V5h3"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="gift-stat-value" id="longestStreak">0</div>
+            <div class="gift-stat-label">Best Streak</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Tabs -->
+    <div class="profile-tabs" id="profileTabs">
+      <button class="profile-tab active" data-tab="posts">Posts</button>
+      <button class="profile-tab" data-tab="about">About</button>
+      <button class="profile-tab" data-tab="gifts">Gifts</button>
+    </div>
+
+    <!-- Posts Tab -->
+    <div class="profile-tab-content active" id="tab-posts">
+      <div class="feed-list" id="myPostsList">
+        <div class="post-skeleton">
+          <div class="post-skeleton-header">
+            <div class="post-skeleton-avatar"></div>
+            <div style="flex: 1;">
+              <div class="post-skeleton-line" style="width: 40%;"></div>
+              <div class="post-skeleton-line" style="width: 25%; height: 10px;"></div>
+            </div>
+          </div>
+          <div class="post-skeleton-line" style="width: 85%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- About Tab -->
+    <div class="profile-tab-content" id="tab-about">
+
+      <div class="profile-section" id="interestsSection" style="display: none;">
+        <div class="profile-section-title">Interests</div>
+        <div class="profile-interests" id="profileInterests"></div>
+      </div>
+
+      <div class="profile-section">
+        <div class="profile-section-title">Account</div>
+
+        <div class="profile-row" id="editProfileRow">
+          <div class="profile-row-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="profile-row-label">Edit Profile</div>
+          <div class="profile-row-arrow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <div class="profile-row" id="darkModeRow">
+          <div class="profile-row-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </div>
+          <div class="profile-row-label">Dark Mode</div>
+          <button class="switch" id="profileDarkToggle" aria-label="Toggle dark mode"></button>
+        </div>
+
+        <div class="profile-row" id="settingsRow">
+          <div class="profile-row-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </div>
+          <div class="profile-row-label">Settings</div>
+          <div class="profile-row-arrow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <div class="profile-row" id="helpRow">
+          <div class="profile-row-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <div class="profile-row-label">Help & Support</div>
+          <div class="profile-row-arrow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <div class="profile-row" id="logoutRow">
+          <div class="profile-row-icon danger">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </div>
+          <div class="profile-row-label" style="color: var(--danger); font-weight: 600;">Sign Out</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Gifts Tab -->
+    <div class="profile-tab-content" id="tab-gifts">
+      <div class="profile-gifts-section" id="recentGiftsSection" style="display: none;">
+        <div class="profile-gifts-header">
+          <div class="profile-gifts-title">Recent Gifts</div>
+          <div class="profile-gifts-count" id="giftsCountLabel">0 total</div>
+        </div>
+        <div class="gift-grid" id="giftGrid"></div>
+      </div>
+
+      <div class="app-empty" id="giftsEmpty" style="display: none;">
+        <div class="app-empty-illustration" id="giftsEmptyIllustration"></div>
+        <h3 class="app-empty-title">No gifts yet</h3>
+        <p class="app-empty-text">Claim your daily gift from the Matches tab to start your collection.</p>
+      </div>
+    </div>
+
+    <p style="text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 16px 0;">
+      Vibe v1.0.0
+    </p>
+
+  </div>
+</section>
+
+<!-- ============================================
+     VIEW 5 — SETTINGS
+============================================ -->
+<section class="view" id="view-settings">
+  <div class="view-inner">
+
+    <div class="section-header" style="margin-top: 4px;">
+      <h2>Settings</h2>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Appearance</div>
+      <div class="settings-row no-click" style="flex-direction: column; align-items: stretch; padding-bottom: 0;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div class="settings-row-icon purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+            </svg>
+          </div>
+          <div class="settings-row-content">
+            <div class="settings-row-label">Theme</div>
+            <div class="settings-row-description">Choose your look</div>
+          </div>
+        </div>
+        <div class="theme-options" id="themeOptions"></div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Preferences</div>
+
+      <div class="settings-row" id="notificationsRow">
+        <div class="settings-row-icon blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+        </div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">Notifications</div>
+          <div class="settings-row-description">Coming soon</div>
+        </div>
+        <div class="settings-row-value">Off</div>
+      </div>
+
+      <div class="settings-row" id="languageRow">
+        <div class="settings-row-icon green">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+        </div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">Language</div>
+        </div>
+        <div class="settings-row-value">English</div>
+        <div class="settings-row-arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Privacy & Safety</div>
+
+      <div class="settings-row" id="blockedUsersRow">
+        <div class="settings-row-icon red">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+          </svg>
+        </div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">Blocked Users</div>
+          <div class="settings-row-description">Manage blocked list</div>
+        </div>
+        <div class="settings-row-arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+      </div>
+
+      <div class="settings-row" id="safetyRow">
+        <div class="settings-row-icon yellow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+        </div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">Safety Center</div>
+          <div class="settings-row-description">Tips and guidelines</div>
+        </div>
+        <div class="settings-row-arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">About</div>
+
+      <div class="settings-row" id="aboutRow">
+        <div class="settings-row-icon blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">About Vibe</div>
+        </div>
+        <div class="settings-row-arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+      </div>
+
+      <div class="settings-row" id="termsRow">
+        <div class="settings-row-icon purple">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+        </div>
+        <div class="settings-row-content">
+          <div class="settings-row-label">Terms & Privacy</div>
+        </div>
+        <div class="settings-row-arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+      </div>
+
+      <div class="settings-version">
+        <div class="settings-version-logo">
+          <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
+          <span>Vibe</span>
+        </div>
+        <span>v1.0.0</span>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-row" id="settingsLogoutRow" style="justify-content: center; padding: 16px;">
+        <div class="settings-row-content" style="text-align: center;">
+          <div class="settings-row-label" style="color: var(--danger); font-weight: 700;">Sign Out</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================
+     BOTTOM NAVIGATION (5 tabs)
+============================================ -->
+<nav class="bottom-nav" id="bottomNav">
+
+  <button class="nav-item active" data-view="feed" aria-label="Feed">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+    </svg>
+    <span>Feed</span>
+  </button>
+
+  <button class="nav-item" data-view="matches" aria-label="Matches">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+    </svg>
+    <span>Matches</span>
+  </button>
+
+  <button class="nav-item" data-view="chats" aria-label="Chats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
+    <span>Chats</span>
+    <span class="nav-badge" id="chatBadge">0</span>
+  </button>
+
+  <button class="nav-item" data-view="profile" aria-label="Profile">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+    <span>Profile</span>
+  </button>
+
+  <button class="nav-item" data-view="settings" aria-label="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+    <span>Settings</span>
+  </button>
+
+</nav>
+
+<!-- ============================================
+     CHAT ROOM
+============================================ -->
+<div class="chat-room" id="chatRoom">
+
+  <div class="chat-room-header">
+    <button class="chat-back" id="chatBackBtn" aria-label="Back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+    </button>
+    <div class="avatar avatar-sm" id="chatAvatar">U</div>
+    <div class="chat-header-info">
+      <div class="chat-header-name" id="chatName">—</div>
+      <div class="chat-header-status" id="chatStatus">
+        <span class="status-dot gray"></span>
+        <span>Offline</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-messages" id="chatMessages"></div>
+
+  <div class="chat-input-bar">
+    <textarea
+      class="chat-input"
+      id="chatInput"
+      placeholder="Type a message..."
+      rows="1"
+      maxlength="500"
+    ></textarea>
+    <button class="chat-send" id="chatSendBtn" disabled aria-label="Send">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+
+</div>
+
+<!-- ============================================
+     MOOD MODAL
+============================================ -->
+<div class="modal-overlay" id="moodModal">
+  <div class="modal-sheet">
+
+    <div class="modal-handle"></div>
+
+    <h2 class="modal-title" id="moodModalTitle">How are you feeling?</h2>
+    <p class="modal-subtitle" id="moodModalSubtitle">Pick the mood that fits you right now.</p>
+
+    <div class="modal-mood-grid" id="modalMoodGrid">
+      <button class="modal-mood-btn" data-mood="happy">
+        <span class="emoji">😊</span>
+        <span class="label">Happy</span>
+      </button>
+      <button class="modal-mood-btn" data-mood="sad">
+        <span class="emoji">😔</span>
+        <span class="label">Sad</span>
+      </button>
+      <button class="modal-mood-btn" data-mood="party">
+        <span class="emoji">🎉</span>
+        <span class="label">Party</span>
+      </button>
+      <button class="modal-mood-btn" data-mood="chill">
+        <span class="emoji">😌</span>
+        <span class="label">Chill</span>
+      </button>
+      <button class="modal-mood-btn" data-mood="tired">
+        <span class="emoji">😴</span>
+        <span class="label">Tired</span>
+      </button>
+      <button class="modal-mood-btn" data-mood="motivated">
+        <span class="emoji">🔥</span>
+        <span class="label">Motivated</span>
+      </button>
+    </div>
+
+    <div class="mood-limit-info" id="moodLimitInfo" style="display: none;"></div>
+
+    <div style="margin-top: 16px;">
+      <button class="btn btn-primary btn-block" id="moodConfirmBtn" disabled>
+        Confirm Mood
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================
+     GIFT POPUP MODAL
+============================================ -->
+<div class="gift-popup-overlay" id="giftPopup">
+  <div class="gift-popup" id="giftPopupCard">
+
+    <div class="gift-popup-header">Daily Reward</div>
+
+    <div class="gift-popup-icon-wrap">
+      <div class="gift-popup-icon-bg" id="giftPopupIconBg"></div>
+      <div class="gift-popup-icon-ring"></div>
+      <div class="gift-popup-icon" id="giftPopupIcon"></div>
+    </div>
+
+    <div class="gift-popup-rarity" id="giftPopupRarity">Common</div>
+
+    <h2 class="gift-popup-name" id="giftPopupName">Silver Star</h2>
+
+    <p class="gift-popup-message" id="giftPopupMessage">You got a new gift today!</p>
+
+    <div class="gift-popup-milestone" id="giftPopupMilestone" style="display: none;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 3H17V7C17 10 15 12 12 12C9 12 7 10 7 7V3Z" fill="#FBBF24"/>
+        <path d="M7 4H4V7C4 9 5.5 10 7 10V4Z" fill="#FBBF24"/>
+        <path d="M17 4H20V7C20 9 18.5 10 17 10V4Z" fill="#FBBF24"/>
+        <rect x="9" y="12" width="6" height="4" fill="#D97706"/>
+        <rect x="7" y="16" width="10" height="3" rx="0.5" fill="#92400E"/>
+        <rect x="6" y="19" width="12" height="2" rx="0.5" fill="#78350F"/>
+      </svg>
+      <span id="giftPopupMilestoneLabel">7-Day Warrior</span>
+    </div>
+
+    <div class="gift-popup-streak" id="giftPopupStreak">
+      <svg class="gift-popup-streak-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C10 8 6 9 6 14C6 17.314 8.686 20 12 20C15.314 20 18 17.314 18 14C18 9 14 8 12 2ZM12 17C10.343 17 9 15.657 9 14C9 12 10 11 12 8C14 11 15 12 15 14C15 15.657 13.657 17 12 17Z" fill="#F59E0B"/>
+      </svg>
+      <div class="gift-popup-streak-text">
+        <span id="giftPopupStreakNum">1</span>
+        <small>day streak</small>
+      </div>
+    </div>
+
+    <button class="gift-popup-btn" id="giftPopupBtn">Collect Gift</button>
+
+  </div>
+</div>
+
+<!-- ============================================
+     CREATE POST MODAL
+============================================ -->
+<div class="create-post-overlay" id="createPostOverlay">
+  <div class="create-post-modal">
+    <div class="create-post-handle"></div>
+
+    <div class="create-post-header">
+      <h2 class="create-post-title">New Post</h2>
+      <button class="create-post-close" id="createPostClose" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="create-post-user">
+      <div class="avatar avatar-sm" id="createPostAvatar">U</div>
+      <span class="create-post-user-name" id="createPostUserName">You</span>
+    </div>
+
+    <textarea
+      class="create-post-input"
+      id="createPostInput"
+      placeholder="What's on your mind?"
+      maxlength="280"
+      rows="5"
+    ></textarea>
+
+    <div class="create-post-footer">
+      <span class="create-post-counter" id="createPostCounter">0 / 280</span>
+      <button class="create-post-submit" id="createPostSubmit" disabled>Post</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     COMMENT SHEET
+============================================ -->
+<div class="comment-sheet-overlay" id="commentSheetOverlay">
+  <div class="comment-sheet">
+    <div class="comment-sheet-header">
+      <div class="comment-sheet-handle"></div>
+      <div class="comment-sheet-title">Comments</div>
+    </div>
+
+    <div class="comment-sheet-list" id="commentSheetList"></div>
+
+    <div class="comment-input-bar">
+      <textarea
+        class="comment-input"
+        id="commentInput"
+        placeholder="Add a comment..."
+        rows="1"
+        maxlength="200"
+      ></textarea>
+      <button class="comment-send-btn" id="commentSendBtn" disabled aria-label="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================
+     CONFETTI CONTAINER
+============================================ -->
+<div class="confetti-container" id="confettiContainer"></div>
+
+<!-- ============================================
+     SCRIPTS
+============================================ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/gifts.js"></script>
+<script src="js/posts.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
