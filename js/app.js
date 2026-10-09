@@ -1,8 +1,11 @@
 /* ============================================
-   VIBE — Main App Logic (SPA) — FIXED VERSION
+   VIBE — Main App Logic (SPA) — FINAL FIXED
    ============================================
-   Navigation, Feed, Matches, Chats, Profile,
-   Settings, Chat Room, Realtime, Mood, Gifts
+   All bugs fixed:
+   - Feed loading on init
+   - Post render timing
+   - Force repaint on view switch
+   - Matches + Active users + Chats
 ============================================ */
 
 // ============================================
@@ -31,7 +34,7 @@ const app = {
   _settingsInited: false,
   _navInited: false,
   _profileTabsInited: false,
-  _initDone: false
+  _feedRendering: false
 };
 
 // ============================================
@@ -70,24 +73,30 @@ const app = {
     // Hide loading spinner
     hideAppLoading();
 
-    // Make sure feed view is active from start
+    // Determine start view
     const urlHash = window.location.hash.replace('#', '');
     const validHash = ['feed', 'matches', 'chats', 'profile', 'settings'].includes(urlHash);
     const startView = validHash ? urlHash : 'feed';
 
+    // Switch to start view FIRST
     switchView(startView, false);
 
-    // Load all data in parallel
+    // ⭐ LOAD FEED FIRST (critical for feed to show on open)
+    await loadFeed();
+
+    // Force render feed immediately after loading
+    renderFeed();
+
+    // Then load everything else in parallel
     await Promise.allSettled([
-      loadFeed(),
       loadMatches(),
       loadGiftStats(),
       loadActiveUsers(),
       loadChats()
     ]);
 
-    // Mark init complete
-    app._initDone = true;
+    // Re-render feed one more time (safety)
+    renderFeed();
 
     // Periodic tasks
     setInterval(updateLastSeen, 2 * 60 * 1000);
@@ -98,7 +107,7 @@ const app = {
       if (toggle) updateProfileToggleState(toggle);
     });
 
-    console.log('✅ App initialized (Feed + 5 tabs)');
+    console.log('✅ App initialized successfully');
 
   } catch (err) {
     console.error('App init error:', err);
@@ -166,7 +175,7 @@ function emptyMoodHTML() {
 }
 
 // ============================================
-// NAVIGATION (5 tabs) — FIXED
+// NAVIGATION
 // ============================================
 function setupNavigation() {
   if (app._navInited) return;
@@ -193,7 +202,7 @@ function switchView(view, updateHash = true) {
 
   app.currentView = view;
 
-  // Update nav items
+  // Update nav
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.view === view);
   });
@@ -211,12 +220,16 @@ function switchView(view, updateHash = true) {
   // Scroll top
   window.scrollTo({ top: 0, behavior: 'instant' });
 
-  // Lazy loads (only after init, or force on first)
+  // ⭐ FORCE RENDER on every view switch
   if (view === 'feed') {
     if (app.feedPosts.length === 0) {
-      loadFeed();
+      loadFeed().then(() => {
+        renderFeed();
+        forceRepaint('feedList');
+      });
     } else {
       renderFeed();
+      forceRepaint('feedList');
     }
   }
 
@@ -240,6 +253,15 @@ function switchView(view, updateHash = true) {
     } else {
       renderMatches();
     }
+    forceRepaint('matchList');
+  }
+}
+
+// ⭐ Force browser repaint
+function forceRepaint(elementId) {
+  const el = document.getElementById(elementId);
+  if (el) {
+    void el.offsetHeight;
   }
 }
 
@@ -277,8 +299,7 @@ async function loadCurrentMood() {
       app.lastMoodChangeAt = new Date(data.created_at);
       renderMyMood();
     } else {
-      // Delay mood modal open to after app ready
-      setTimeout(() => openMoodModal(true), 800);
+      setTimeout(() => openMoodModal(true), 1200);
     }
   } catch (err) {
     console.error('loadCurrentMood error:', err);
@@ -303,6 +324,13 @@ async function loadFeed(reset = true) {
   const listEl = document.getElementById('feedList');
   if (!listEl) return;
 
+  if (app._feedRendering) {
+    console.log('Feed already loading...');
+    return;
+  }
+
+  app._feedRendering = true;
+
   try {
     if (reset) {
       app.feedOffset = 0;
@@ -316,10 +344,11 @@ async function loadFeed(reset = true) {
     app.feedOffset += posts.length;
     if (posts.length < 20) app.feedHasMore = false;
 
-    renderFeed();
+    console.log(`📰 Feed loaded: ${posts.length} posts`);
   } catch (err) {
     console.error('Load feed error:', err);
-    renderFeed();
+  } finally {
+    app._feedRendering = false;
   }
 }
 
@@ -329,11 +358,13 @@ function renderFeed() {
 
   if (app.feedPosts.length === 0) {
     listEl.innerHTML = renderEmptyFeed();
-    return;
+  } else {
+    listEl.innerHTML = app.feedPosts.map(p => renderPostCard(p)).join('');
+    attachPostListeners(listEl);
   }
 
-  listEl.innerHTML = app.feedPosts.map(p => renderPostCard(p)).join('');
-  attachPostListeners(listEl);
+  // Force repaint
+  void listEl.offsetHeight;
 }
 
 // ============================================
@@ -402,6 +433,7 @@ function setupPostSystem() {
       const btn = e.currentTarget;
       btn.classList.add('spinning');
       await loadFeed(true);
+      renderFeed();
       setTimeout(() => btn.classList.remove('spinning'), 500);
     });
   }
@@ -504,7 +536,11 @@ async function submitPost() {
     showToast('Post shared!', 'success');
     closeCreatePost();
 
+    // Reload feed
     await loadFeed(true);
+    renderFeed();
+    forceRepaint('feedList');
+
     if (app.currentView === 'profile' && app.profileTab === 'posts') {
       await loadMyPosts();
     }
@@ -733,6 +769,7 @@ function renderMyPosts() {
   })).join('');
 
   attachPostListeners(listEl);
+  void listEl.offsetHeight;
 }
 
 // ============================================
@@ -926,6 +963,7 @@ function renderMatches() {
 
   if (app.matches.length === 0) {
     listEl.innerHTML = emptyMatchesHTML();
+    void listEl.offsetHeight;
     return;
   }
 
@@ -978,6 +1016,8 @@ function renderMatches() {
       await openChatWithUser(btn.dataset.userId, btn.dataset.name);
     });
   });
+
+  void listEl.offsetHeight;
 }
 
 // ============================================
