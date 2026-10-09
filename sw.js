@@ -1,11 +1,11 @@
 /* ============================================
-   VIBE — Service Worker
+   VIBE — Service Worker (v2)
    ============================================
    Offline caching + faster loads
 ============================================ */
 
-const CACHE_NAME = 'vibe-v1.0.0';
-const RUNTIME_CACHE = 'vibe-runtime-v1';
+const CACHE_NAME = 'vibe-v2.0.0';
+const RUNTIME_CACHE = 'vibe-runtime-v2';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -15,33 +15,48 @@ const PRECACHE_URLS = [
   '/register.html',
   '/setup.html',
   '/app.html',
+  '/manifest.json',
+
+  // CSS
   '/css/global.css',
   '/css/auth.css',
   '/css/app.css',
+  '/css/theme.css',
+  '/css/premium.css',
+  '/css/posts.css',
+
+  // JS
   '/js/config.js',
   '/js/supabase-client.js',
+  '/js/theme.js',
+  '/js/icons.js',
   '/js/utils.js',
   '/js/auth.js',
   '/js/setup.js',
+  '/js/gifts.js',
+  '/js/posts.js',
   '/js/app.js',
-  '/manifest.json',
+  '/js/pwa.js',
+
+  // Icons
   '/assets/icons/android-chrome-192x192.png',
   '/assets/icons/android-chrome-512x512.png',
   '/assets/icons/apple-touch-icon.png',
-  '/assets/icons/favicon.ico'
+  '/assets/icons/favicon.ico',
+  '/assets/icons/favicon-16x16.png',
+  '/assets/icons/favicon-32x32.png'
 ];
 
 // ============================================
-// INSTALL — Pre-cache essential files
+// INSTALL
 // ============================================
 self.addEventListener('install', (event) => {
-  console.log('🔧 SW: Installing...');
+  console.log('🔧 SW: Installing v2...');
 
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('📦 SW: Pre-caching files');
-        // Use individual adds so one failure doesn't break everything
         return Promise.allSettled(
           PRECACHE_URLS.map(url =>
             cache.add(url).catch(err => {
@@ -55,10 +70,10 @@ self.addEventListener('install', (event) => {
 });
 
 // ============================================
-// ACTIVATE — Clean old caches
+// ACTIVATE
 // ============================================
 self.addEventListener('activate', (event) => {
-  console.log('✅ SW: Activating...');
+  console.log('✅ SW: Activating v2...');
 
   event.waitUntil(
     caches.keys()
@@ -77,32 +92,21 @@ self.addEventListener('activate', (event) => {
 });
 
 // ============================================
-// FETCH — Serve from cache, fallback to network
+// FETCH
 // ============================================
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests
   if (request.method !== 'GET') return;
-
-  // Skip Supabase API calls (always use network — real-time data)
   if (url.hostname.includes('supabase.co')) return;
-
-  // Skip Google Fonts API
   if (url.hostname.includes('fonts.googleapis.com')) return;
-
-  // Skip chrome extensions
+  if (url.hostname.includes('fonts.gstatic.com')) return;
+  if (url.hostname.includes('cdn.jsdelivr.net')) return;
   if (url.protocol === 'chrome-extension:') return;
 
-  // ============================================
-  // Strategy:
-  // 1. HTML pages → Network first, cache fallback
-  // 2. Static assets (CSS/JS/images) → Cache first, network fallback
-  // ============================================
-
+  // HTML pages → Network first
   if (request.mode === 'navigate' || request.destination === 'document') {
-    // Network first for HTML
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -117,7 +121,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache first for static assets
+  // Static assets → Cache first
   event.respondWith(
     caches.match(request)
       .then(cached => {
@@ -125,7 +129,6 @@ self.addEventListener('fetch', (event) => {
 
         return fetch(request)
           .then(response => {
-            // Only cache successful responses
             if (!response || response.status !== 200) return response;
 
             const copy = response.clone();
@@ -133,7 +136,6 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
-            // Offline fallback for images
             if (request.destination === 'image') {
               return new Response('', { status: 404 });
             }
@@ -143,7 +145,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ============================================
-// MESSAGE — Handle skip waiting
+// MESSAGE
 // ============================================
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
