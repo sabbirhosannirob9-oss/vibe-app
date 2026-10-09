@@ -4,8 +4,8 @@
    Offline caching + faster loads
 ============================================ */
 
-const CACHE_NAME = 'vibe-v2.0.1';
-const RUNTIME_CACHE = 'vibe-runtime-v2';
+const CACHE_NAME = 'vibe-v2.1.0';
+const RUNTIME_CACHE = 'vibe-runtime-v2.1';
 
 // Files to cache on install
 const PRECACHE_URLS = [
