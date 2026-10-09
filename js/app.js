@@ -1,11 +1,17 @@
 /* ============================================
-   VIBE — Main App Logic (SPA) — FINAL FIXED
+   VIBE — Main App Logic — FINAL v2.1.0
    ============================================
-   All bugs fixed:
-   - Feed loading on init
-   - Post render timing
-   - Force repaint on view switch
-   - Matches + Active users + Chats
+   Features:
+   - Feed + Posts + Likes + Comments
+   - Matches + Chat + Active Users
+   - Profile (Posts/About/Gifts tabs)
+   - Daily Gifts + Streak + Verified
+   - Swipe to Reply
+   - Back Button handling
+   - Block User + Report User
+   - Typing Indicator
+   - Read Receipts (✓✓)
+   - Push Notifications
 ============================================ */
 
 // ============================================
@@ -21,20 +27,32 @@ const app = {
   chats: [],
   feedPosts: [],
   myPosts: [],
+  blockedUsers: [],
   feedOffset: 0,
   feedHasMore: true,
   currentRoom: null,
   currentPartner: null,
   currentPostId: null,
+  currentReplyTo: null,
   realtimeChannel: null,
+  typingChannel: null,
+  typingTimeout: null,
+  partnerTyping: false,
   profileTab: 'posts',
   moodChangeCount: 0,
   lastMoodChangeAt: null,
   giftStats: null,
+  reportTarget: null,
+  reportReason: null,
+  soundEnabled: true,
+  vibrationEnabled: true,
+  notificationsEnabled: true,
   _settingsInited: false,
   _navInited: false,
   _profileTabsInited: false,
-  _feedRendering: false
+  _feedRendering: false,
+  _backInited: false,
+  _chatMenuInited: false
 };
 
 // ============================================
@@ -56,10 +74,13 @@ const app = {
       return;
     }
 
+    // Load user preferences
+    loadUserPreferences();
+
     await updateLastSeen();
     await loadCurrentMood();
+    await loadBlockedUsers();
 
-    // Setup all handlers BEFORE loading data
     renderProfileView();
     setupNavigation();
     setupMoodModal();
@@ -68,26 +89,25 @@ const app = {
     setupProfileTabs();
     setupGiftSystem();
     setupPostSystem();
+    setupBackButton();
+    setupChatMenu();
+    setupSettingsToggles();
+    setupBlockedUsers();
+    setupReportSheet();
+    setupNotifications();
     renderEmptyStates();
 
-    // Hide loading spinner
     hideAppLoading();
 
-    // Determine start view
     const urlHash = window.location.hash.replace('#', '');
     const validHash = ['feed', 'matches', 'chats', 'profile', 'settings'].includes(urlHash);
     const startView = validHash ? urlHash : 'feed';
 
-    // Switch to start view FIRST
     switchView(startView, false);
 
-    // ⭐ LOAD FEED FIRST (critical for feed to show on open)
     await loadFeed();
-
-    // Force render feed immediately after loading
     renderFeed();
 
-    // Then load everything else in parallel
     await Promise.allSettled([
       loadMatches(),
       loadGiftStats(),
@@ -95,10 +115,8 @@ const app = {
       loadChats()
     ]);
 
-    // Re-render feed one more time (safety)
     renderFeed();
 
-    // Periodic tasks
     setInterval(updateLastSeen, 2 * 60 * 1000);
     setInterval(loadActiveUsers, 60 * 1000);
 
@@ -107,7 +125,7 @@ const app = {
       if (toggle) updateProfileToggleState(toggle);
     });
 
-    console.log('✅ App initialized successfully');
+    console.log('✅ App initialized (v2.1.0)');
 
   } catch (err) {
     console.error('App init error:', err);
@@ -141,6 +159,60 @@ function verifiedBadgeHTML(isVerified, size = 'default') {
       <polyline points="20 6 9 17 4 12"></polyline>
     </svg>
   </span>`;
+}
+
+// ============================================
+// USER PREFERENCES (localStorage)
+// ============================================
+function loadUserPreferences() {
+  app.soundEnabled = localStorage.getItem('vibe_sound') !== 'false';
+  app.vibrationEnabled = localStorage.getItem('vibe_vibration') !== 'false';
+  app.notificationsEnabled = localStorage.getItem('vibe_notifications') !== 'false';
+}
+
+function saveUserPreference(key, value) {
+  localStorage.setItem(`vibe_${key}`, String(value));
+}
+
+// ============================================
+// BACK BUTTON HANDLING (Android)
+// ============================================
+function setupBackButton() {
+  if (app._backInited) return;
+  app._backInited = true;
+
+  history.pushState({ vibe: true }, '', location.href);
+
+  window.addEventListener('popstate', (e) => {
+    // 1. Chat room open → close
+    const chatRoom = document.getElementById('chatRoom');
+    if (chatRoom && chatRoom.classList.contains('open')) {
+      e.preventDefault();
+      history.pushState(null, '', location.href);
+      closeChatRoom();
+      return;
+    }
+
+    // 2. Any modal/sheet open → close
+    const openModal = document.querySelector(
+      '.modal-overlay.open, .gift-popup-overlay.open, .create-post-overlay.open, .comment-sheet-overlay.open, .sheet-overlay.open'
+    );
+    if (openModal) {
+      e.preventDefault();
+      history.pushState(null, '', location.href);
+      openModal.classList.remove('open');
+      document.body.style.overflow = '';
+      return;
+    }
+
+    // 3. Not on feed → go to feed
+    if (app.currentView !== 'feed') {
+      e.preventDefault();
+      history.pushState(null, '', location.href);
+      switchView('feed');
+      return;
+    }
+  });
 }
 
 // ============================================
@@ -202,31 +274,23 @@ function switchView(view, updateHash = true) {
 
   app.currentView = view;
 
-  // Update nav
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.view === view);
   });
 
-  // Update views
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const target = document.getElementById('view-' + view);
   if (target) target.classList.add('active');
 
-  // Update hash
   if (updateHash) {
     history.replaceState(null, '', '#' + view);
   }
 
-  // Scroll top
   window.scrollTo({ top: 0, behavior: 'instant' });
 
-  // ⭐ FORCE RENDER on every view switch
   if (view === 'feed') {
     if (app.feedPosts.length === 0) {
-      loadFeed().then(() => {
-        renderFeed();
-        forceRepaint('feedList');
-      });
+      loadFeed().then(() => { renderFeed(); forceRepaint('feedList'); });
     } else {
       renderFeed();
       forceRepaint('feedList');
@@ -238,9 +302,7 @@ function switchView(view, updateHash = true) {
     loadActiveUsers();
   }
 
-  if (view === 'settings') {
-    initSettingsView();
-  }
+  if (view === 'settings') initSettingsView();
 
   if (view === 'profile') {
     loadGiftStats();
@@ -257,12 +319,331 @@ function switchView(view, updateHash = true) {
   }
 }
 
-// ⭐ Force browser repaint
 function forceRepaint(elementId) {
   const el = document.getElementById(elementId);
-  if (el) {
-    void el.offsetHeight;
+  if (el) void el.offsetHeight;
+}
+
+// ============================================
+// BLOCKED USERS
+// ============================================
+async function loadBlockedUsers() {
+  try {
+    const { data, error } = await sb
+      .from('blocked_users')
+      .select('blocked_id')
+      .eq('blocker_id', app.user.id);
+
+    if (error) throw error;
+    app.blockedUsers = (data || []).map(b => b.blocked_id);
+    console.log(`🚫 Blocked: ${app.blockedUsers.length} users`);
+  } catch (err) {
+    console.error('Load blocked error:', err);
+    app.blockedUsers = [];
   }
+}
+
+function isBlocked(userId) {
+  return app.blockedUsers.includes(userId);
+}
+
+async function blockUser(userId) {
+  try {
+    const { error } = await sb
+      .from('blocked_users')
+      .insert({
+        blocker_id: app.user.id,
+        blocked_id: userId
+      });
+
+    if (error) throw error;
+
+    app.blockedUsers.push(userId);
+    showToast('User blocked', 'success');
+    
+    // Remove from UI
+    closeChatRoom();
+    await loadChats();
+    await loadMatches();
+    await loadActiveUsers();
+    
+    closeChatMenu();
+  } catch (err) {
+    console.error('Block error:', err);
+    showToast('Failed to block user', 'error');
+  }
+}
+
+async function unblockUser(userId) {
+  try {
+    const { error } = await sb
+      .from('blocked_users')
+      .delete()
+      .eq('blocker_id', app.user.id)
+      .eq('blocked_id', userId);
+
+    if (error) throw error;
+
+    app.blockedUsers = app.blockedUsers.filter(id => id !== userId);
+    showToast('User unblocked', 'success');
+    
+    await loadBlockedUsersList();
+  } catch (err) {
+    console.error('Unblock error:', err);
+    showToast('Failed to unblock', 'error');
+  }
+}
+
+function setupBlockedUsers() {
+  document.getElementById('blockedUsersRow')?.addEventListener('click', () => {
+    openBlockedUsersSheet();
+  });
+
+  document.getElementById('blockedUsersClose')?.addEventListener('click', () => {
+    closeSheet('blockedUsersSheet');
+  });
+
+  document.getElementById('blockedUsersSheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'blockedUsersSheet') closeSheet('blockedUsersSheet');
+  });
+}
+
+async function openBlockedUsersSheet() {
+  openSheet('blockedUsersSheet');
+  await loadBlockedUsersList();
+}
+
+async function loadBlockedUsersList() {
+  const container = document.getElementById('blockedUsersList');
+  if (!container) return;
+
+  if (app.blockedUsers.length === 0) {
+    container.innerHTML = `
+      <div class="app-empty" style="padding: 32px 16px;">
+        <div class="app-empty-title">No blocked users</div>
+        <div class="app-empty-text">You haven't blocked anyone yet.</div>
+      </div>
+    `;
+    return;
+  }
+
+  const { data: profiles } = await sb
+    .from('profiles')
+    .select('id, name, is_verified')
+    .in('id', app.blockedUsers);
+
+  if (!profiles || profiles.length === 0) {
+    container.innerHTML = `<div class="app-empty-text">No blocked users found.</div>`;
+    return;
+  }
+
+  container.innerHTML = profiles.map(p => {
+    const initial = (p.name || 'U').charAt(0).toUpperCase();
+    return `
+      <div class="blocked-user-item">
+        <div class="avatar" style="width: 40px; height: 40px; font-size: 14px;">${initial}</div>
+        <div class="blocked-user-info">
+          <div class="blocked-user-name">${escapeHtml(p.name)}</div>
+        </div>
+        <button class="blocked-user-unblock" data-user-id="${p.id}">Unblock</button>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.blocked-user-unblock').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await unblockUser(btn.dataset.userId);
+    });
+  });
+}
+
+// ============================================
+// REPORT USER
+// ============================================
+function setupReportSheet() {
+  document.querySelectorAll('.report-reason').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.report-reason').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      app.reportReason = btn.dataset.reason;
+      
+      const submitBtn = document.getElementById('reportSubmitBtn');
+      if (submitBtn) submitBtn.disabled = false;
+    });
+  });
+
+  document.getElementById('reportSubmitBtn')?.addEventListener('click', submitReport);
+  document.getElementById('reportCancel')?.addEventListener('click', () => closeSheet('reportSheet'));
+  document.getElementById('reportSheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'reportSheet') closeSheet('reportSheet');
+  });
+}
+
+function openReportSheet(userId) {
+  app.reportTarget = userId;
+  app.reportReason = null;
+  
+  document.querySelectorAll('.report-reason').forEach(b => b.classList.remove('selected'));
+  const submitBtn = document.getElementById('reportSubmitBtn');
+  if (submitBtn) submitBtn.disabled = true;
+  
+  const details = document.getElementById('reportDetails');
+  if (details) details.value = '';
+  
+  openSheet('reportSheet');
+}
+
+async function submitReport() {
+  if (!app.reportTarget || !app.reportReason) return;
+
+  const submitBtn = document.getElementById('reportSubmitBtn');
+  const details = document.getElementById('reportDetails')?.value.trim() || '';
+
+  setButtonLoading(submitBtn, true);
+
+  try {
+    const { error } = await sb
+      .from('reports')
+      .insert({
+        reporter_id: app.user.id,
+        reported_id: app.reportTarget,
+        reason: app.reportReason,
+        details: details || null
+      });
+
+    if (error) throw error;
+
+    showToast('Report submitted. Thank you!', 'success');
+    closeSheet('reportSheet');
+    
+    app.reportTarget = null;
+    app.reportReason = null;
+  } catch (err) {
+    console.error('Report error:', err);
+    showToast('Failed to submit report', 'error');
+  } finally {
+    setButtonLoading(submitBtn, false);
+  }
+}
+
+// ============================================
+// SHEET HELPERS
+// ============================================
+function openSheet(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeSheet(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+// ============================================
+// CHAT MENU (Block/Report)
+// ============================================
+function setupChatMenu() {
+  if (app._chatMenuInited) return;
+  app._chatMenuInited = true;
+
+  document.getElementById('chatMenuBtn')?.addEventListener('click', openChatMenu);
+  document.getElementById('chatMenuCancel')?.addEventListener('click', closeChatMenu);
+  document.getElementById('chatMenuSheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'chatMenuSheet') closeChatMenu();
+  });
+}
+
+function openChatMenu() {
+  const partner = app.currentPartner;
+  if (!partner) return;
+
+  const optionsEl = document.getElementById('chatMenuOptions');
+  if (!optionsEl) return;
+
+  const blocked = isBlocked(partner.id);
+
+  optionsEl.innerHTML = `
+    <button class="sheet-option" data-action="view-profile">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">View Profile</div>
+      </div>
+    </button>
+
+    ${blocked ? `
+      <button class="sheet-option" data-action="unblock">
+        <div class="sheet-option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+          </svg>
+        </div>
+        <div class="sheet-option-content">
+          <div class="sheet-option-label">Unblock User</div>
+        </div>
+      </button>
+    ` : `
+      <button class="sheet-option danger" data-action="block">
+        <div class="sheet-option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+          </svg>
+        </div>
+        <div class="sheet-option-content">
+          <div class="sheet-option-label">Block User</div>
+          <div class="sheet-option-description">You won't see their messages</div>
+        </div>
+      </button>
+    `}
+
+    <button class="sheet-option danger" data-action="report">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+          <line x1="4" y1="22" x2="4" y2="15"></line>
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">Report User</div>
+        <div class="sheet-option-description">Help us keep Vibe safe</div>
+      </div>
+    </button>
+  `;
+
+  optionsEl.querySelectorAll('.sheet-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      closeChatMenu();
+      
+      if (action === 'block') {
+        if (confirm(`Block ${partner.name}?`)) blockUser(partner.id);
+      } else if (action === 'unblock') {
+        unblockUser(partner.id);
+      } else if (action === 'report') {
+        openReportSheet(partner.id);
+      } else if (action === 'view-profile') {
+        showToast('Profile view coming soon', 'info');
+      }
+    });
+  });
+
+  openSheet('chatMenuSheet');
+}
+
+function closeChatMenu() {
+  closeSheet('chatMenuSheet');
 }
 
 // ============================================
@@ -323,11 +704,7 @@ function renderMyMood() {
 async function loadFeed(reset = true) {
   const listEl = document.getElementById('feedList');
   if (!listEl) return;
-
-  if (app._feedRendering) {
-    console.log('Feed already loading...');
-    return;
-  }
+  if (app._feedRendering) return;
 
   app._feedRendering = true;
 
@@ -344,7 +721,7 @@ async function loadFeed(reset = true) {
     app.feedOffset += posts.length;
     if (posts.length < 20) app.feedHasMore = false;
 
-    console.log(`📰 Feed loaded: ${posts.length} posts`);
+    console.log(`📰 Feed: ${posts.length} posts`);
   } catch (err) {
     console.error('Load feed error:', err);
   } finally {
@@ -362,8 +739,6 @@ function renderFeed() {
     listEl.innerHTML = app.feedPosts.map(p => renderPostCard(p)).join('');
     attachPostListeners(listEl);
   }
-
-  // Force repaint
   void listEl.offsetHeight;
 }
 
@@ -473,16 +848,14 @@ function attachPostListeners(container) {
   container.querySelectorAll('.comment-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const postId = parseInt(btn.dataset.postId, 10);
-      openCommentSheet(postId);
+      openCommentSheet(parseInt(btn.dataset.postId, 10));
     });
   });
 
   container.querySelectorAll('.post-menu-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const postId = parseInt(btn.dataset.postId, 10);
-      showPostMenu(postId, btn);
+      showPostMenu(parseInt(btn.dataset.postId, 10), btn);
     });
   });
 }
@@ -526,23 +899,38 @@ async function submitPost() {
   const input = document.getElementById('createPostInput');
   const submitBtn = document.getElementById('createPostSubmit');
   const content = input.value.trim();
-
   if (!content) return;
 
   setButtonLoading(submitBtn, true);
 
   try {
-    await createPost(content);
+    const newPost = await createPost(content);
     showToast('Post shared!', 'success');
     closeCreatePost();
 
-    // Reload feed
-    await loadFeed(true);
-    renderFeed();
-    forceRepaint('feedList');
+    const optimisticPost = {
+      id: newPost.id,
+      user_id: app.user.id,
+      content: content,
+      created_at: newPost.created_at || new Date().toISOString(),
+      author_name: app.profile.name,
+      author_verified: app.profile.is_verified || false,
+      like_count: 0,
+      comment_count: 0,
+      liked_by_me: false
+    };
+
+    app.feedPosts.unshift(optimisticPost);
+
+    if (app.currentView === 'feed') {
+      renderFeed();
+      forceRepaint('feedList');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
     if (app.currentView === 'profile' && app.profileTab === 'posts') {
-      await loadMyPosts();
+      app.myPosts.unshift(optimisticPost);
+      renderMyPosts();
     }
   } catch (err) {
     console.error('Post error:', err);
@@ -616,11 +1004,7 @@ async function openCommentSheet(postId) {
   document.body.style.overflow = 'hidden';
   if (inputEl) inputEl.value = '';
 
-  listEl.innerHTML = `
-    <div style="text-align: center; padding: 24px;">
-      <div class="spinner" style="margin: 0 auto;"></div>
-    </div>
-  `;
+  listEl.innerHTML = `<div style="text-align: center; padding: 24px;"><div class="spinner" style="margin: 0 auto;"></div></div>`;
 
   try {
     const comments = await fetchComments(postId);
@@ -686,14 +1070,12 @@ async function submitComment() {
   const input = document.getElementById('commentInput');
   const sendBtn = document.getElementById('commentSendBtn');
   const content = input.value.trim();
-
   if (!content || !app.currentPostId) return;
 
   sendBtn.disabled = true;
 
   try {
     const comment = await addComment(app.currentPostId, content);
-
     const listEl = document.getElementById('commentSheetList');
     const empty = listEl.querySelector('.comment-empty');
     if (empty) listEl.innerHTML = '';
@@ -818,7 +1200,7 @@ async function loadActiveUsers() {
 
     if (error) throw error;
 
-    let users = data || [];
+    let users = (data || []).filter(u => !isBlocked(u.id));
 
     if (app.currentMood && users.length > 0) {
       const userIds = users.map(u => u.id);
@@ -846,11 +1228,7 @@ async function loadActiveUsers() {
     }
 
     if (users.length === 0) {
-      container.innerHTML = `
-        <div class="active-empty">
-          No one is active right now. Check back later.
-        </div>
-      `;
+      container.innerHTML = `<div class="active-empty">No one is active right now. Check back later.</div>`;
       return;
     }
 
@@ -911,7 +1289,7 @@ async function loadMatches() {
     if (!latestByUser[v.user_id]) latestByUser[v.user_id] = v.created_at;
   });
 
-  const userIds = Object.keys(latestByUser);
+  const userIds = Object.keys(latestByUser).filter(id => !isBlocked(id));
 
   if (userIds.length === 0) {
     if (listEl) listEl.innerHTML = emptyMatchesHTML();
@@ -1024,6 +1402,11 @@ function renderMatches() {
 // OPEN CHAT WITH USER
 // ============================================
 async function openChatWithUser(userId, userName) {
+  if (isBlocked(userId)) {
+    showToast('This user is blocked', 'info');
+    return;
+  }
+
   let partner = app.matches.find(m => m.id === userId);
 
   if (!partner) {
@@ -1085,8 +1468,10 @@ function setupChatRoom() {
   const backBtn = document.getElementById('chatBackBtn');
   const input = document.getElementById('chatInput');
   const sendBtn = document.getElementById('chatSendBtn');
+  const replyClose = document.getElementById('replyPreviewClose');
 
   if (backBtn) backBtn.addEventListener('click', closeChatRoom);
+  if (replyClose) replyClose.addEventListener('click', cancelReply);
 
   if (input) {
     input.addEventListener('input', () => {
@@ -1094,6 +1479,9 @@ function setupChatRoom() {
       if (sendBtn) sendBtn.disabled = !hasText;
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+
+      // Send typing status
+      sendTypingStatus();
     });
 
     input.addEventListener('keydown', (e) => {
@@ -1110,6 +1498,8 @@ function setupChatRoom() {
 async function openChatRoom(partner) {
   app.currentPartner = partner;
 
+  history.pushState({ chatRoom: true }, '', location.href);
+
   const chatNameEl = document.getElementById('chatName');
   if (chatNameEl) {
     chatNameEl.innerHTML = escapeHtml(partner.name) + verifiedBadgeHTML(partner.is_verified, 'chat');
@@ -1124,8 +1514,14 @@ async function openChatRoom(partner) {
   room.classList.add('open');
   document.body.style.overflow = 'hidden';
 
+  cancelReply();
+
   await loadMessages();
   subscribeToMessages();
+  subscribeToTyping();
+
+  // Mark messages as read
+  await markMessagesAsRead();
 
   setTimeout(() => document.getElementById('chatInput')?.focus(), 350);
 }
@@ -1140,8 +1536,16 @@ function closeChatRoom() {
     app.realtimeChannel = null;
   }
 
+  if (app.typingChannel) {
+    sb.removeChannel(app.typingChannel);
+    app.typingChannel = null;
+  }
+
+  cancelReply();
   app.currentPartner = null;
   app.currentRoom = null;
+  app.partnerTyping = false;
+
   loadChats();
 }
 
@@ -1245,30 +1649,267 @@ function renderMessages(messages) {
     if (g.type === 'date') return `<div class="msg-date">${formatDate(g.date)}</div>`;
     const m = g.msg;
     const mine = m.sender_id === app.user.id;
+    const senderName = mine ? 'You' : (app.currentPartner?.name || 'User');
+    
     return `
-      <div class="msg ${mine ? 'mine' : 'theirs'}">
-        <div class="msg-bubble">${escapeHtml(m.message)}</div>
+      <div class="msg-wrapper ${mine ? 'mine' : 'theirs'}">
+        <div class="msg-swipe-reply-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 17 4 12 9 7"></polyline>
+            <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+          </svg>
+        </div>
+        <div class="msg ${mine ? 'mine' : 'theirs'}" 
+             data-msg-id="${m.id}" 
+             data-msg-text="${escapeHtml(m.message)}"
+             data-msg-sender="${escapeHtml(senderName)}"
+             data-msg-time="${m.created_at}"
+             data-msg-read="${m.read_at ? 'true' : 'false'}">
+          <div class="msg-bubble">${escapeHtml(m.message)}</div>
+          <div class="msg-meta">
+            <span>${formatTime(m.created_at)}</span>
+            ${mine ? renderMessageStatus(m) : ''}
+          </div>
+        </div>
       </div>
     `;
   }).join('');
 
+  attachMessageSwipe(el);
   scrollToBottom();
 }
 
-function formatDate(iso) {
+function formatTime(iso) {
   const d = new Date(iso);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  let hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${ampm}`;
 }
 
-function scrollToBottom() {
-  const el = document.getElementById('chatMessages');
-  if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+// ============================================
+// READ RECEIPTS
+// ============================================
+function renderMessageStatus(msg) {
+  const isRead = !!msg.read_at;
+  return `
+    <span class="msg-status ${isRead ? 'read' : ''}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        ${isRead ? `
+          <polyline points="2 12 7 17 12 12"></polyline>
+          <polyline points="9 12 14 17 22 6"></polyline>
+        ` : `
+          <polyline points="5 12 10 17 19 6"></polyline>
+        `}
+      </svg>
+    </span>
+  `;
+}
+
+async function markMessagesAsRead() {
+  if (!app.currentRoom || !app.currentPartner) return;
+
+  try {
+    const { error } = await sb
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('room_id', app.currentRoom.id)
+      .neq('sender_id', app.user.id)
+      .is('read_at', null);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error('Mark read error:', err);
+  }
+}
+
+// ============================================
+// TYPING INDICATOR
+// ============================================
+function subscribeToTyping() {
+  if (!app.currentRoom || !app.currentPartner) return;
+
+  if (app.typingChannel) sb.removeChannel(app.typingChannel);
+
+  app.typingChannel = sb
+    .channel('typing-' + app.currentRoom.id)
+    .on('broadcast', { event: 'typing' }, (payload) => {
+      if (payload.payload.userId === app.currentPartner.id) {
+        showPartnerTyping();
+      }
+    })
+    .on('broadcast', { event: 'stop_typing' }, (payload) => {
+      if (payload.payload.userId === app.currentPartner.id) {
+        hidePartnerTyping();
+      }
+    })
+    .subscribe();
+}
+
+function sendTypingStatus() {
+  if (!app.typingChannel || !app.currentRoom) return;
+
+  app.typingChannel.send({
+    type: 'broadcast',
+    event: 'typing',
+    payload: { userId: app.user.id }
+  });
+
+  clearTimeout(app.typingTimeout);
+  app.typingTimeout = setTimeout(() => {
+    if (app.typingChannel) {
+      app.typingChannel.send({
+        type: 'broadcast',
+        event: 'stop_typing',
+        payload: { userId: app.user.id }
+      });
+    }
+  }, 2000);
+}
+
+function showPartnerTyping() {
+  app.partnerTyping = true;
+  const statusEl = document.getElementById('chatStatus');
+  if (!statusEl) return;
+
+  statusEl.innerHTML = `
+    <span class="typing-indicator show">
+      typing
+      <span class="typing-dots">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+      </span>
+    </span>
+  `;
+
+  clearTimeout(app.partnerTypingTimer);
+  app.partnerTypingTimer = setTimeout(hidePartnerTyping, 3000);
+}
+
+function hidePartnerTyping() {
+  app.partnerTyping = false;
+  if (app.currentPartner) {
+    updatePartnerStatus(app.currentPartner.last_seen);
+  }
+}
+
+// ============================================
+// SWIPE TO REPLY
+// ============================================
+function attachMessageSwipe(container) {
+  const SWIPE_THRESHOLD = 60;
+  const MAX_SWIPE = 80;
+
+  container.querySelectorAll('.msg').forEach(msgEl => {
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+    let triggered = false;
+
+    const wrapper = msgEl.parentElement;
+
+    const onStart = (clientX) => {
+      startX = clientX;
+      currentX = 0;
+      isDragging = true;
+      triggered = false;
+      msgEl.style.transition = 'none';
+      wrapper.classList.add('swiping');
+    };
+
+    const onMove = (clientX, e) => {
+      if (!isDragging) return;
+      const deltaX = clientX - startX;
+
+      if (deltaX < 0) {
+        currentX = 0;
+        msgEl.style.transform = '';
+        return;
+      }
+
+      currentX = Math.min(deltaX, MAX_SWIPE);
+      msgEl.style.transform = `translateX(${currentX}px)`;
+
+      if (currentX >= SWIPE_THRESHOLD && !triggered) {
+        triggered = true;
+        if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate(15);
+        wrapper.classList.add('trigger-ready');
+      } else if (currentX < SWIPE_THRESHOLD && triggered) {
+        triggered = false;
+        wrapper.classList.remove('trigger-ready');
+      }
+
+      if (currentX > 10 && e && e.cancelable) e.preventDefault();
+    };
+
+    const onEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      wrapper.classList.remove('swiping');
+
+      if (currentX >= SWIPE_THRESHOLD) {
+        const msgText = msgEl.dataset.msgText;
+        const msgSender = msgEl.dataset.msgSender;
+
+        if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate([10, 30, 10]);
+
+        msgEl.style.transition = 'transform 0.2s ease';
+        msgEl.style.transform = 'translateX(0)';
+
+        setTimeout(() => {
+          showReplyPreview(msgText, msgSender);
+          wrapper.classList.remove('trigger-ready');
+        }, 100);
+      } else {
+        msgEl.style.transition = 'transform 0.2s ease';
+        msgEl.style.transform = 'translateX(0)';
+        wrapper.classList.remove('trigger-ready');
+      }
+
+      currentX = 0;
+      triggered = false;
+    };
+
+    msgEl.addEventListener('touchstart', (e) => onStart(e.touches[0].clientX), { passive: true });
+    msgEl.addEventListener('touchmove', (e) => onMove(e.touches[0].clientX, e), { passive: false });
+    msgEl.addEventListener('touchend', onEnd);
+    msgEl.addEventListener('touchcancel', onEnd);
+
+    msgEl.addEventListener('mousedown', (e) => onStart(e.clientX));
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) onMove(e.clientX, e);
+    });
+    document.addEventListener('mouseup', () => {
+      if (isDragging) onEnd();
+    });
+  });
+}
+
+// ============================================
+// REPLY SYSTEM
+// ============================================
+function showReplyPreview(msgText, senderName) {
+  app.currentReplyTo = { text: msgText, sender: senderName };
+
+  const bar = document.getElementById('replyPreviewBar');
+  if (!bar) return;
+
+  bar.style.display = 'flex';
+  const nameEl = bar.querySelector('.reply-preview-name');
+  const textEl = bar.querySelector('.reply-preview-text');
+
+  if (nameEl) nameEl.textContent = `Replying to ${senderName}`;
+  if (textEl) textEl.textContent = msgText.slice(0, 80) + (msgText.length > 80 ? '...' : '');
+
+  document.getElementById('chatInput')?.focus();
+}
+
+function cancelReply() {
+  app.currentReplyTo = null;
+  const bar = document.getElementById('replyPreviewBar');
+  if (bar) bar.style.display = 'none';
 }
 
 // ============================================
@@ -1286,6 +1927,11 @@ async function sendMessage() {
     return;
   }
 
+  let finalMessage = text;
+  if (app.currentReplyTo) {
+    finalMessage = `↩️ ${app.currentReplyTo.sender}: ${app.currentReplyTo.text.slice(0, 50)}\n\n${text}`;
+  }
+
   input.value = '';
   input.style.height = 'auto';
   sendBtn.disabled = true;
@@ -1295,7 +1941,7 @@ async function sendMessage() {
     .insert({
       room_id: app.currentRoom.id,
       sender_id: app.user.id,
-      message: text
+      message: finalMessage
     });
 
   if (error) {
@@ -1303,11 +1949,14 @@ async function sendMessage() {
     showToast('Failed to send. Try again.', 'error');
     input.value = text;
     sendBtn.disabled = false;
+  } else {
+    cancelReply();
+    if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate(10);
   }
 }
 
 // ============================================
-// REALTIME
+// REALTIME MESSAGES
 // ============================================
 function subscribeToMessages() {
   if (!app.currentRoom) return;
@@ -1322,6 +1971,12 @@ function subscribeToMessages() {
       table: 'messages',
       filter: `room_id=eq.${app.currentRoom.id}`
     }, (payload) => appendMessage(payload.new))
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'messages',
+      filter: `room_id=eq.${app.currentRoom.id}`
+    }, (payload) => updateMessageReadStatus(payload.new))
     .subscribe();
 }
 
@@ -1333,11 +1988,91 @@ function appendMessage(msg) {
   if (empty) el.innerHTML = '';
 
   const mine = msg.sender_id === app.user.id;
+  const senderName = mine ? 'You' : (app.currentPartner?.name || 'User');
+
   const div = document.createElement('div');
-  div.className = `msg ${mine ? 'mine' : 'theirs'}`;
-  div.innerHTML = `<div class="msg-bubble">${escapeHtml(msg.message)}</div>`;
+  div.className = `msg-wrapper ${mine ? 'mine' : 'theirs'}`;
+  div.innerHTML = `
+    <div class="msg-swipe-reply-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 17 4 12 9 7"></polyline>
+        <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+      </svg>
+    </div>
+    <div class="msg ${mine ? 'mine' : 'theirs'}" 
+         data-msg-id="${msg.id}" 
+         data-msg-text="${escapeHtml(msg.message)}"
+         data-msg-sender="${escapeHtml(senderName)}"
+         data-msg-time="${msg.created_at}"
+         data-msg-read="${msg.read_at ? 'true' : 'false'}">
+      <div class="msg-bubble">${escapeHtml(msg.message)}</div>
+      <div class="msg-meta">
+        <span>${formatTime(msg.created_at)}</span>
+        ${mine ? renderMessageStatus(msg) : ''}
+      </div>
+    </div>
+  `;
+
   el.appendChild(div);
+
+  // Attach swipe to new message
+  const newMsgEl = div.querySelector('.msg');
+  if (newMsgEl) {
+    const parentContainer = el;
+    const lastChild = parentContainer.lastElementChild;
+    const tempContainer = document.createElement('div');
+    tempContainer.appendChild(lastChild.cloneNode(true));
+    attachMessageSwipe(el);
+  }
+
   scrollToBottom();
+
+  // If received from partner and chat open → mark as read
+  if (!mine) {
+    markMessagesAsRead();
+    
+    // Play sound / vibrate
+    if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate([20, 50, 20]);
+    if (app.soundEnabled) playMessageSound();
+  }
+}
+
+function updateMessageReadStatus(msg) {
+  const el = document.querySelector(`.msg[data-msg-id="${msg.id}"]`);
+  if (!el) return;
+
+  const metaEl = el.querySelector('.msg-meta');
+  if (!metaEl) return;
+
+  const mine = msg.sender_id === app.user.id;
+  if (!mine) return;
+
+  const timeStr = formatTime(msg.created_at);
+  metaEl.innerHTML = `
+    <span>${timeStr}</span>
+    ${renderMessageStatus(msg)}
+  `;
+}
+
+function playMessageSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch (err) {
+    // silent fail  }
 }
 
 // ============================================
@@ -1389,8 +2124,9 @@ async function loadChats() {
     return { room, partner: profileMap[partnerId], lastMessage: lastMsg };
   }));
 
-  const activeChats = chatData.filter(c => c.lastMessage);
-  activeChats.sort((a, b) => new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at));
+  const activeChats = chatData
+    .filter(c => c.lastMessage && c.partner && !isBlocked(c.partner.id))
+    .sort((a, b) => new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at));
 
   app.chats = activeChats;
 
@@ -1405,8 +2141,6 @@ async function loadChats() {
 
   const html = activeChats.map(c => {
     const partner = c.partner;
-    if (!partner) return '';
-
     const initial = (partner.name || 'U').charAt(0).toUpperCase();
     const status = getActiveStatus(partner.last_seen);
     const preview = c.lastMessage.message.length > 40
@@ -1542,20 +2276,57 @@ function updateProfileToggleState(toggle) {
 }
 
 // ============================================
-// SETTINGS VIEW
+// SETTINGS
 // ============================================
+function setupSettingsToggles() {
+  const notifToggle = document.getElementById('notificationsToggle');
+  if (notifToggle) {
+    notifToggle.classList.toggle('on', app.notificationsEnabled);
+    notifToggle.addEventListener('click', async () => {
+      app.notificationsEnabled = !app.notificationsEnabled;
+      notifToggle.classList.toggle('on', app.notificationsEnabled);
+      saveUserPreference('notifications', app.notificationsEnabled);
+      
+      if (app.notificationsEnabled) {
+        await requestNotificationPermission();
+      }
+      showToast(`Notifications ${app.notificationsEnabled ? 'on' : 'off'}`, 'info');
+    });
+  }
+
+  const soundToggle = document.getElementById('soundToggle');
+  if (soundToggle) {
+    soundToggle.classList.toggle('on', app.soundEnabled);
+    soundToggle.addEventListener('click', () => {
+      app.soundEnabled = !app.soundEnabled;
+      soundToggle.classList.toggle('on', app.soundEnabled);
+      saveUserPreference('sound', app.soundEnabled);
+      showToast(`Sound ${app.soundEnabled ? 'on' : 'off'}`, 'info');
+    });
+  }
+
+  const vibToggle = document.getElementById('vibrationToggle');
+  if (vibToggle) {
+    vibToggle.classList.toggle('on', app.vibrationEnabled);
+    vibToggle.addEventListener('click', () => {
+      app.vibrationEnabled = !app.vibrationEnabled;
+      vibToggle.classList.toggle('on', app.vibrationEnabled);
+      saveUserPreference('vibration', app.vibrationEnabled);
+      if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate(50);
+      showToast(`Vibration ${app.vibrationEnabled ? 'on' : 'off'}`, 'info');
+    });
+  }
+}
+
 function initSettingsView() {
   renderThemeSelector('themeOptions');
 
   if (app._settingsInited) return;
   app._settingsInited = true;
 
-  document.getElementById('notificationsRow')?.addEventListener('click', () => showToast('Coming soon!', 'info'));
-  document.getElementById('languageRow')?.addEventListener('click', () => showToast('More languages coming soon!', 'info'));
-  document.getElementById('blockedUsersRow')?.addEventListener('click', () => showToast('No blocked users yet.', 'info'));
-  document.getElementById('safetyRow')?.addEventListener('click', () => showToast('Safety Center coming soon!', 'info'));
   document.getElementById('aboutRow')?.addEventListener('click', showAboutModal);
   document.getElementById('termsRow')?.addEventListener('click', () => showToast('Terms coming soon!', 'info'));
+  document.getElementById('safetyRow')?.addEventListener('click', () => showToast('Safety Center coming soon!', 'info'));
 
   document.getElementById('settingsLogoutRow')?.addEventListener('click', async () => {
     if (confirm('Sign out of Vibe?')) await signOut();
@@ -1563,7 +2334,43 @@ function initSettingsView() {
 }
 
 function showAboutModal() {
-  alert('Vibe v1.0.0\n\nMatch your mood. Meet real people.\n\n(c) 2026 Vibe');
+  alert('Vibe v2.1.0\n\nMatch your mood. Meet real people.\n\n(c) 2026 Vibe');
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+async function setupNotifications() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') return;
+  // Don't auto-request — wait for user to enable
+}
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    showToast('Notifications not supported', 'error');
+    return false;
+  }
+
+  const permission = await Notification.requestPermission();
+  return permission === 'granted';
+}
+
+function showNotification(title, body, icon) {
+  if (!app.notificationsEnabled) return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+
+  try {
+    new Notification(title, {
+      body: body,
+      icon: icon || 'assets/icons/android-chrome-192x192.png',
+      badge: 'assets/icons/android-chrome-192x192.png',
+      tag: 'vibe-notification'
+    });
+  } catch (err) {
+    // some browsers require service worker for notifications
+  }
 }
 
 // ============================================
