@@ -1,5 +1,5 @@
 /* ============================================
-   VIBE — Main App Logic — FINAL v2.1.0
+   VIBE — Main App Logic — FINAL v2.1.0 (Fixed)
    ============================================
    Features:
    - Feed + Posts + Likes + Comments
@@ -360,13 +360,13 @@ async function blockUser(userId) {
 
     app.blockedUsers.push(userId);
     showToast('User blocked', 'success');
-    
+
     // Remove from UI
     closeChatRoom();
     await loadChats();
     await loadMatches();
     await loadActiveUsers();
-    
+
     closeChatMenu();
   } catch (err) {
     console.error('Block error:', err);
@@ -386,7 +386,7 @@ async function unblockUser(userId) {
 
     app.blockedUsers = app.blockedUsers.filter(id => id !== userId);
     showToast('User unblocked', 'success');
-    
+
     await loadBlockedUsersList();
   } catch (err) {
     console.error('Unblock error:', err);
@@ -466,7 +466,7 @@ function setupReportSheet() {
       document.querySelectorAll('.report-reason').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       app.reportReason = btn.dataset.reason;
-      
+
       const submitBtn = document.getElementById('reportSubmitBtn');
       if (submitBtn) submitBtn.disabled = false;
     });
@@ -482,14 +482,14 @@ function setupReportSheet() {
 function openReportSheet(userId) {
   app.reportTarget = userId;
   app.reportReason = null;
-  
+
   document.querySelectorAll('.report-reason').forEach(b => b.classList.remove('selected'));
   const submitBtn = document.getElementById('reportSubmitBtn');
   if (submitBtn) submitBtn.disabled = true;
-  
+
   const details = document.getElementById('reportDetails');
   if (details) details.value = '';
-  
+
   openSheet('reportSheet');
 }
 
@@ -515,7 +515,7 @@ async function submitReport() {
 
     showToast('Report submitted. Thank you!', 'success');
     closeSheet('reportSheet');
-    
+
     app.reportTarget = null;
     app.reportReason = null;
   } catch (err) {
@@ -626,7 +626,7 @@ function openChatMenu() {
     btn.addEventListener('click', () => {
       const action = btn.dataset.action;
       closeChatMenu();
-      
+
       if (action === 'block') {
         if (confirm(`Block ${partner.name}?`)) blockUser(partner.id);
       } else if (action === 'unblock') {
@@ -1650,7 +1650,7 @@ function renderMessages(messages) {
     const m = g.msg;
     const mine = m.sender_id === app.user.id;
     const senderName = mine ? 'You' : (app.currentPartner?.name || 'User');
-    
+
     return `
       <div class="msg-wrapper ${mine ? 'mine' : 'theirs'}">
         <div class="msg-swipe-reply-icon">
@@ -1679,6 +1679,17 @@ function renderMessages(messages) {
   scrollToBottom();
 }
 
+function formatDate(iso) {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function formatTime(iso) {
   const d = new Date(iso);
   let hours = d.getHours();
@@ -1686,6 +1697,11 @@ function formatTime(iso) {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12 || 12;
   return `${hours}:${minutes} ${ampm}`;
+}
+
+function scrollToBottom() {
+  const el = document.getElementById('chatMessages');
+  if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
 }
 
 // ============================================
@@ -2015,22 +2031,15 @@ function appendMessage(msg) {
 
   el.appendChild(div);
 
-  // Attach swipe to new message
-  const newMsgEl = div.querySelector('.msg');
-  if (newMsgEl) {
-    const parentContainer = el;
-    const lastChild = parentContainer.lastElementChild;
-    const tempContainer = document.createElement('div');
-    tempContainer.appendChild(lastChild.cloneNode(true));
-    attachMessageSwipe(el);
-  }
+  // Attach swipe to all messages (re-attaches all)
+  attachMessageSwipe(el);
 
   scrollToBottom();
 
   // If received from partner and chat open → mark as read
   if (!mine) {
     markMessagesAsRead();
-    
+
     // Play sound / vibrate
     if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate([20, 50, 20]);
     if (app.soundEnabled) playMessageSound();
@@ -2059,20 +2068,21 @@ function playMessageSound() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    
+
     osc.connect(gain);
     gain.connect(ctx.destination);
-    
+
     osc.frequency.value = 880;
     osc.type = 'sine';
-    
+
     gain.gain.setValueAtTime(0.1, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-    
+
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.2);
   } catch (err) {
-    // silent fail  }
+    // Silent fail
+  }
 }
 
 // ============================================
@@ -2286,7 +2296,7 @@ function setupSettingsToggles() {
       app.notificationsEnabled = !app.notificationsEnabled;
       notifToggle.classList.toggle('on', app.notificationsEnabled);
       saveUserPreference('notifications', app.notificationsEnabled);
-      
+
       if (app.notificationsEnabled) {
         await requestNotificationPermission();
       }
@@ -2343,7 +2353,6 @@ function showAboutModal() {
 async function setupNotifications() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'granted') return;
-  // Don't auto-request — wait for user to enable
 }
 
 async function requestNotificationPermission() {
