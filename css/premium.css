@@ -1,0 +1,1055 @@
+/* ============================================
+   VIBE — Premium Animations & Effects
+   ============================================
+   Confetti, glow, sparkle, shine, bounce
+============================================ */
+
+/* ============================================
+   1. KEYFRAMES LIBRARY
+============================================ */
+
+/* Confetti fall */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Glow pulse */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--glow-color, rgba(37,99,235,0.4));
+  }
+  50% {
+    box-shadow: 0 0 40px var(--glow-color, rgba(37,99,235,0.7)),
+                0 0 60px var(--glow-color, rgba(37,99,235,0.4));
+  }
+}
+
+/* Scale bounce */
+@keyframes scale-bounce {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.1); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Shine sweep */
+@keyframes shine-sweep {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Sparkle burst */
+@keyframes sparkle-burst {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3) rotate(180deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+    opacity: 1;
+  }
+}
+
+/* Fire flicker */
+@keyframes fire-flicker {
+  0%, 100% {
+    transform: scale(1) rotate(-2deg);
+    filter: brightness(1);
+  }
+  25% {
+    transform: scale(1.05) rotate(2deg);
+    filter: brightness(1.2);
+  }
+  50% {
+    transform: scale(0.98) rotate(-1deg);
+    filter: brightness(1.1);
+  }
+  75% {
+    transform: scale(1.02) rotate(1deg);
+    filter: brightness(1.15);
+  }
+}
+
+/* Heart beat */
+@keyframes heart-beat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.2); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.15); }
+}
+
+/* Float up (particles) */
+@keyframes float-up {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-120px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* Slide in from top */
+@keyframes slide-in-down {
+  0% {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Shimmer for skeleton/loading */
+@keyframes shimmer-gold {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Rotate gentle */
+@keyframes rotate-gentle {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+/* Pop in */
+@keyframes pop-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Shake */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+/* ============================================
+   2. GIFT ITEM (SVG-based)
+============================================ */
+
+.gift-item {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 10px;
+  box-shadow: inset 0 0 0 1.5px var(--gift-color, #94A3B8),
+              0 2px 8px rgba(0,0,0,0.06);
+  transition: all 0.25s var(--ease);
+}
+
+.gift-item svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.gift-item-sm {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border-radius: 11px;
+}
+
+.gift-item-lg {
+  width: 72px;
+  height: 72px;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+/* Gift icon color glow on hover */
+.gift-item:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: inset 0 0 0 2px var(--gift-color, #94A3B8),
+              0 6px 20px var(--gift-color, rgba(148,163,184,0.3));
+}
+
+/* ============================================
+   3. GIFT GRID (Profile section)
+============================================ */
+
+.gift-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 4px 0;
+}
+
+@media (max-width: 380px) {
+  .gift-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .gift-grid .gift-item {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+}
+
+/* ============================================
+   4. STREAK BADGE
+============================================ */
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+  color: #B45309;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(251,191,36,0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+html[data-theme="dark"] .streak-badge {
+  background: linear-gradient(135deg, #78350F 0%, #B45309 100%);
+  color: #FEF3C7;
+}
+
+.streak-badge .fire-icon {
+  width: 16px;
+  height: 16px;
+  animation: fire-flicker 1.5s ease-in-out infinite;
+}
+
+.streak-badge .streak-number {
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+}
+
+/* Shine sweep on streak */
+.streak-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.5) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shine-sweep 3s linear infinite;
+  pointer-events: none;
+}
+
+/* ============================================
+   5. GIFT STATS CARD (Profile)
+============================================ */
+
+.gift-stats-card {
+  background: var(--bg-primary);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border-light);
+  position: relative;
+  overflow: hidden;
+}
+
+.gift-stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.gift-stats-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.gift-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gift-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 100px;
+}
+
+.gift-stat-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.gift-stat-value {
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.gift-stat-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  display: block;
+  margin-top: 1px;
+}
+
+/* ============================================
+   6. GIFT CLAIM BANNER (Home)
+============================================ */
+
+.gift-claim-banner {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 50%, #FBBF24 100%);
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(251,191,36,0.3);
+  animation: glow-pulse 2.5s ease-in-out infinite;
+  --glow-color: rgba(251,191,36,0.5);
+  transition: transform 0.25s var(--ease);
+}
+
+.gift-claim-banner:active {
+  transform: scale(0.97);
+}
+
+html[data-theme="dark"] .gift-claim-banner {
+  background: linear-gradient(135deg, #78350F 0%, #B45309 50%, #D97706 100%);
+}
+
+.gift-claim-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.4) 50%,
+    transparent 100%
+  );
+  animation: shine-sweep 2.5s linear infinite;
+}
+
+.gift-claim-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 8px;
+  animation: scale-bounce 2s ease-in-out infinite;
+}
+
+.gift-claim-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.gift-claim-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gift-claim-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #78350F;
+  margin-bottom: 2px;
+}
+
+html[data-theme="dark"] .gift-claim-title {
+  color: #FEF3C7;
+}
+
+.gift-claim-subtitle {
+  font-size: 12.5px;
+  color: #92400E;
+  font-weight: 500;
+}
+
+html[data-theme="dark"] .gift-claim-subtitle {
+  color: #FCD34D;
+}
+
+.gift-claim-arrow {
+  color: #78350F;
+  flex-shrink: 0;
+  transition: transform 0.25s var(--ease);
+}
+
+html[data-theme="dark"] .gift-claim-arrow {
+  color: #FEF3C7;
+}
+
+.gift-claim-banner:hover .gift-claim-arrow {
+  transform: translateX(4px);
+}
+
+/* ============================================
+   7. GIFT POPUP MODAL
+============================================ */
+
+.gift-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,26,61,0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 24px;
+  animation: fadeIn 0.3s ease;
+}
+
+.gift-popup-overlay.open {
+  display: flex;
+}
+
+.gift-popup {
+  background: var(--bg-primary);
+  border-radius: 28px;
+  padding: 32px 24px 28px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  animation: scale-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+}
+
+/* Radial glow behind gift */
+.gift-popup::before {
+  content: '';
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, var(--gift-glow, rgba(37,99,235,0.3)) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: glow-pulse 2s ease-in-out infinite;
+  --glow-color: var(--gift-glow, rgba(37,99,235,0.3));
+}
+
+.gift-popup > * {
+  position: relative;
+  z-index: 1;
+}
+
+.gift-popup-header {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 24px;
+}
+
+/* Gift icon container */
+.gift-popup-icon-wrap {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 24px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gift-popup-icon-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--gift-color, #2563EB) 0%, transparent 70%);
+  opacity: 0.2;
+  animation: glow-pulse 2s ease-in-out infinite;
+  --glow-color: var(--gift-glow, rgba(37,99,235,0.4));
+}
+
+.gift-popup-icon-ring {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--gift-color, #2563EB);
+  opacity: 0.4;
+  animation: rotate-gentle 4s ease-in-out infinite;
+}
+
+.gift-popup-icon {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  box-shadow: 0 12px 32px var(--gift-glow, rgba(37,99,235,0.4)),
+              0 0 0 6px rgba(255,255,255,0.1);
+  animation: pop-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+.gift-popup-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Rarity label */
+.gift-popup-rarity {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+  background: var(--gift-color, #2563EB);
+  color: white;
+  box-shadow: 0 4px 12px var(--gift-glow, rgba(37,99,235,0.4));
+  animation: slide-in-down 0.5s var(--ease) 0.4s both;
+}
+
+/* Gift name */
+.gift-popup-name {
+  font-family: 'Poppins', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  animation: slide-in-down 0.5s var(--ease) 0.5s both;
+}
+
+.gift-popup-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 24px;
+  animation: slide-in-down 0.5s var(--ease) 0.6s both;
+}
+
+/* Milestone celebration */
+.gift-popup-milestone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+  color: #92400E;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  animation: pop-in 0.5s var(--ease) 0.7s both;
+}
+
+html[data-theme="dark"] .gift-popup-milestone {
+  background: linear-gradient(135deg, #78350F 0%, #B45309 100%);
+  color: #FEF3C7;
+}
+
+/* Streak indicator */
+.gift-popup-streak {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  animation: slide-in-down 0.5s var(--ease) 0.8s both;
+}
+
+.gift-popup-streak-icon {
+  width: 24px;
+  height: 24px;
+  animation: fire-flicker 1.5s ease-in-out infinite;
+}
+
+.gift-popup-streak-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Poppins', sans-serif;
+}
+
+.gift-popup-streak-text small {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  margin-left: 4px;
+}
+
+/* Collect button */
+.gift-popup-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--gradient-primary);
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  box-shadow: 0 8px 24px var(--gift-glow, rgba(37,99,235,0.4));
+  transition: transform 0.2s var(--ease);
+  animation: slide-in-down 0.5s var(--ease) 0.9s both;
+}
+
+.gift-popup-btn:active {
+  transform: scale(0.97);
+}
+
+/* ============================================
+   8. CONFETTI
+============================================ */
+
+.confetti-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 600;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  top: -20px;
+  animation: confetti-fall linear forwards;
+}
+
+/* ============================================
+   9. FLOATING PARTICLES
+============================================ */
+
+.float-particle {
+  position: absolute;
+  pointer-events: none;
+  animation: float-up 1.5s ease-out forwards;
+  z-index: 10;
+}
+
+/* ============================================
+   10. PROFILE GIFT SECTION
+============================================ */
+
+.profile-gifts-section {
+  background: var(--bg-primary);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border-light);
+}
+
+.profile-gifts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.profile-gifts-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-gifts-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 4px 10px;
+  background: var(--bg-secondary);
+  border-radius: 100px;
+}
+
+.profile-gifts-empty {
+  text-align: center;
+  padding: 20px 0;
+  color: var(--text-tertiary);
+  font-size: 13.5px;
+}
+
+/* ============================================
+   11. SUCCESS CHECKMARK
+============================================ */
+
+.success-checkmark {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  animation: scale-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 8px 24px rgba(16,185,129,0.4);
+}
+
+/* ============================================
+   12. RIPPLE EFFECT (buttons)
+============================================ */
+
+.ripple-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.4) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+}
+
+.ripple-btn:active::after {
+  opacity: 1;
+  transition: opacity 0s;
+}
+
+/* ============================================
+   13. HAPTIC-LIKE PULSE
+============================================ */
+
+.pulse-on-tap:active {
+  animation: heart-beat 0.3s ease;
+}
+
+/* ============================================
+   14. COUNT UP NUMBER
+============================================ */
+
+.count-up {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   15. FADE-IN SEQUENCE
+============================================ */
+
+.fade-in-seq > * {
+  animation: fadeUp 0.5s var(--ease) both;
+}
+.fade-in-seq > *:nth-child(1) { animation-delay: 0.05s; }
+.fade-in-seq > *:nth-child(2) { animation-delay: 0.10s; }
+.fade-in-seq > *:nth-child(3) { animation-delay: 0.15s; }
+.fade-in-seq > *:nth-child(4) { animation-delay: 0.20s; }
+.fade-in-seq > *:nth-child(5) { animation-delay: 0.25s; }
+.fade-in-seq > *:nth-child(6) { animation-delay: 0.30s; }
+.fade-in-seq > *:nth-child(7) { animation-delay: 0.35s; }
+.fade-in-seq > *:nth-child(8) { animation-delay: 0.40s; }
+
+/* ============================================
+   16. REDUCED MOTION (accessibility)
+============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .gift-popup,
+  .gift-claim-banner,
+  .gift-popup-icon {
+    animation: none !important;
+  }
+  .confetti-piece {
+    display: none !important;
+  }
+}
+/* ============================================
+   PWA INSTALL BANNER
+============================================ */
+
+.pwa-banner {
+  position: fixed;
+  bottom: 96px;
+  left: 12px;
+  right: 12px;
+  max-width: 496px;
+  margin: 0 auto;
+  background: var(--bg-primary);
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 12px 40px rgba(15,26,61,0.25),
+              0 4px 12px rgba(15,26,61,0.15);
+  border: 1px solid var(--border-light);
+  z-index: 150;
+  transform: translateY(150%);
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.pwa-banner.show {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+html[data-theme="dark"] .pwa-banner {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5),
+              0 4px 12px rgba(0,0,0,0.3);
+}
+
+.pwa-banner-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(15,26,61,0.15);
+}
+
+.pwa-banner-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pwa-banner-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pwa-banner-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+
+.pwa-banner-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.pwa-banner-install {
+  padding: 9px 16px;
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+  transition: transform 0.15s;
+}
+
+.pwa-banner-install:active {
+  transform: scale(0.95);
+}
+
+.pwa-banner-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pwa-banner-close:active {
+  background: var(--bg-tertiary);
+  transform: scale(0.9);
+}
+
+html[data-theme="dark"] .pwa-banner-close {
+  background: var(--bg-tertiary);
+}
+
+/* ============================================
+   iOS GUIDE MODAL
+============================================ */
+
+.ios-guide-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,26,61,0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 400;
+}
+
+.ios-guide-overlay.open {
+  display: flex;
+  animation: fadeIn 0.25s ease;
+}
+
+.ios-guide-modal {
+  background: var(--bg-primary);
+  border-radius: 28px 28px 0 0;
+  padding: 20px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+  max-width: 520px;
+  width: 100%;
+  animation: sheetUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ios-guide-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 100px;
+  background: var(--border);
+  margin: 0 auto 20px;
+}
+
+.ios-guide-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.ios-guide-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.ios-guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.ios-guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border-radius: 14px;
+}
+
+.ios-guide-step-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(37,99,235,0.3);
+}
+
+.ios-guide-step-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.45;
+  padding-top: 4px;
+}
+
+.ios-guide-step-text strong {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Extra padding bottom on app-body if banner is visible */
+.app-body.has-pwa-banner {
+  padding-bottom: 160px;
+}

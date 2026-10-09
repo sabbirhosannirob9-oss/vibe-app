@@ -1,0 +1,833 @@
+/* ============================================
+   VIBE — Posts & Feed Styles
+   ============================================
+   Post cards, Feed, Create modal, Comment sheet
+============================================ */
+
+/* ============================================
+   1. FEED VIEW
+============================================ */
+.feed-inner {
+  padding: 16px 16px 100px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ============================================
+   2. POST CARD
+============================================ */
+.post-card {
+  background: var(--bg-primary);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border-light);
+  animation: fadeUp 0.4s var(--ease);
+  transition: box-shadow 0.2s, transform 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.post-card:active {
+  transform: scale(0.995);
+}
+
+/* ---------- Post Header ---------- */
+.post-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.post-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.post-author {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-author-name {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.post-author-name-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.post-time {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* ---------- Post Menu Button ---------- */
+.post-menu-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.post-menu-btn:active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transform: scale(0.9);
+}
+
+/* ---------- Post Content ---------- */
+.post-content {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* ---------- Post Actions ---------- */
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
+}
+
+.post-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+  font-family: inherit;
+}
+
+.post-action-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.post-action-btn:active {
+  background: var(--bg-secondary);
+  transform: scale(0.94);
+}
+
+.post-action-btn .action-count {
+  font-weight: 700;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  min-width: 12px;
+  text-align: left;
+}
+
+/* Liked state */
+.post-action-btn.liked {
+  color: #E11D48;
+}
+
+.post-action-btn.liked svg {
+  fill: currentColor;
+}
+
+.post-action-btn.liked:active svg {
+  animation: heart-beat 0.4s ease;
+}
+
+/* Comment button */
+.post-action-btn.comment-btn:active svg {
+  transform: scale(1.1);
+}
+
+/* ============================================
+   3. CREATE POST FLOATING BUTTON
+============================================ */
+.fab-create-post {
+  position: fixed;
+  bottom: 96px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(37,99,235,0.45),
+              0 4px 8px rgba(37,99,235,0.25);
+  border: none;
+  cursor: pointer;
+  z-index: 90;
+  transition: all 0.25s var(--ease);
+  animation: scale-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.fab-create-post:active {
+  transform: scale(0.9) rotate(90deg);
+}
+
+.fab-create-post svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.5;
+  transition: transform 0.25s;
+}
+
+.fab-create-post:hover svg {
+  transform: rotate(90deg);
+}
+
+/* ============================================
+   4. CREATE POST MODAL
+============================================ */
+.create-post-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,26,61,0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 350;
+}
+
+.create-post-overlay.open {
+  display: flex;
+  animation: fadeIn 0.25s ease;
+}
+
+.create-post-modal {
+  background: var(--bg-primary);
+  border-radius: 28px 28px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  max-width: 520px;
+  animation: sheetUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.create-post-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 100px;
+  background: var(--border);
+  margin: 0 auto 18px;
+}
+
+.create-post-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.create-post-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.create-post-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-post-close:active {
+  background: var(--bg-tertiary);
+  transform: scale(0.9);
+}
+
+.create-post-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.create-post-user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.create-post-input {
+  width: 100%;
+  min-height: 120px;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border: 1.5px solid transparent;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  resize: none;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.create-post-input:focus {
+  background: var(--bg-primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+}
+
+.create-post-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.create-post-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  gap: 12px;
+}
+
+.create-post-counter {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.create-post-counter.warn {
+  color: var(--warning);
+}
+
+.create-post-counter.danger {
+  color: var(--danger);
+}
+
+.create-post-submit {
+  padding: 12px 24px;
+  min-height: 44px;
+  border-radius: 12px;
+  background: var(--gradient-primary);
+  color: white;
+  font-weight: 700;
+  font-size: 14.5px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  box-shadow: 0 6px 16px rgba(37,99,235,0.3);
+  transition: all 0.2s;
+}
+
+.create-post-submit:active {
+  transform: scale(0.96);
+}
+
+.create-post-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ============================================
+   5. COMMENT SHEET
+============================================ */
+.comment-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,26,61,0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 400;
+}
+
+.comment-sheet-overlay.open {
+  display: flex;
+  animation: fadeIn 0.25s ease;
+}
+
+.comment-sheet {
+  background: var(--bg-primary);
+  border-radius: 28px 28px 0 0;
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: sheetUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.comment-sheet-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.comment-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 100px;
+  background: var(--border);
+  margin: 0 auto 14px;
+}
+
+.comment-sheet-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.comment-sheet-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.comment-sheet-list::-webkit-scrollbar {
+  width: 0;
+}
+
+/* ---------- Comment Item ---------- */
+.comment-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  animation: fadeUp 0.3s var(--ease);
+}
+
+.comment-item .avatar-xs {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-secondary);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+  flex-wrap: wrap;
+}
+
+.comment-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.comment-time {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.comment-text {
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.comment-delete-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 6px;
+  transition: all 0.2s;
+}
+
+.comment-delete-btn:active {
+  background: var(--danger-light);
+  color: var(--danger);
+  transform: scale(0.9);
+}
+
+/* ---------- Empty Comments ---------- */
+.comment-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-tertiary);
+}
+
+.comment-empty svg {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 12px;
+  opacity: 0.4;
+}
+
+.comment-empty-text {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* ---------- Comment Input Bar ---------- */
+.comment-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  flex-shrink: 0;
+}
+
+.comment-input {
+  flex: 1;
+  padding: 11px 14px;
+  background: var(--bg-secondary);
+  border: 1.5px solid transparent;
+  border-radius: 22px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  resize: none;
+  min-height: 42px;
+  max-height: 100px;
+  line-height: 1.4;
+  transition: all 0.2s;
+}
+
+.comment-input:focus {
+  background: var(--bg-primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.comment-send-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+  transition: all 0.2s;
+}
+
+.comment-send-btn:active {
+  transform: scale(0.9);
+}
+
+.comment-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ============================================
+   6. POST MENU POPUP (delete/edit)
+============================================ */
+.post-menu-popup {
+  position: absolute;
+  top: 52px;
+  right: 14px;
+  background: var(--bg-primary);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15,26,61,0.25),
+              0 4px 12px rgba(15,26,61,0.15);
+  border: 1px solid var(--border-light);
+  padding: 4px;
+  min-width: 160px;
+  z-index: 100;
+  animation: scaleIn 0.2s var(--ease);
+  transform-origin: top right;
+}
+
+.post-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.post-menu-item:active {
+  background: var(--bg-secondary);
+}
+
+.post-menu-item.danger {
+  color: var(--danger);
+}
+
+.post-menu-item.danger:active {
+  background: var(--danger-light);
+}
+
+.post-menu-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   7. PROFILE POSTS TAB
+============================================ */
+.profile-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--bg-secondary);
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.profile-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s var(--ease);
+  text-align: center;
+}
+
+.profile-tab.active {
+  background: var(--bg-primary);
+  color: var(--primary);
+  box-shadow: 0 2px 6px rgba(15,26,61,0.08);
+}
+
+.profile-tab-content {
+  display: none;
+  animation: fadeUp 0.3s var(--ease);
+}
+
+.profile-tab-content.active {
+  display: block;
+}
+
+/* ============================================
+   8. LOADING SKELETON
+============================================ */
+.post-skeleton {
+  background: var(--bg-primary);
+  border-radius: 20px;
+  padding: 16px;
+  border: 1px solid var(--border-light);
+  margin-bottom: 12px;
+}
+
+.post-skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.post-skeleton-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #F1F3F9 25%, #E5E7EB 50%, #F1F3F9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  flex-shrink: 0;
+}
+
+.post-skeleton-line {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #F1F3F9 25%, #E5E7EB 50%, #F1F3F9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  margin-bottom: 8px;
+}
+
+html[data-theme="dark"] .post-skeleton-avatar,
+html[data-theme="dark"] .post-skeleton-line {
+  background: linear-gradient(90deg, #1E2A52 25%, #2A3559 50%, #1E2A52 75%);
+  background-size: 200% 100%;
+}
+
+/* ============================================
+   9. FEED HEADER
+============================================ */
+.feed-header {
+  padding: 20px 20px 12px;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.feed-header-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.feed-header-refresh {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.feed-header-refresh:active {
+  background: var(--bg-tertiary);
+  transform: scale(0.9) rotate(180deg);
+}
+
+.feed-header-refresh.spinning svg {
+  animation: spin 0.7s linear infinite;
+}
+
+/* ============================================
+   10. POSTS COUNT (Profile)
+============================================ */
+.profile-posts-count {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  padding: 8px 0;
+  text-align: center;
+}
+
+/* ============================================
+   11. RESPONSIVE
+============================================ */
+@media (max-width: 380px) {
+  .post-card {
+    padding: 14px;
+    border-radius: 18px;
+  }
+  .post-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+  .post-content {
+    font-size: 14.5px;
+  }
+  .post-action-btn {
+    padding: 7px 10px;
+    font-size: 13px;
+  }
+  .fab-create-post {
+    width: 52px;
+    height: 52px;
+    bottom: 88px;
+    right: 16px;
+  }
+}
