@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -25,16 +25,12 @@
 </head>
 <body class="app-body">
 
-<!-- ============================================
-     PAGE LOADING
-============================================ -->
+<!-- PAGE LOADING -->
 <div id="appLoading" style="position: fixed; inset: 0; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; z-index: 9999;">
   <div class="spinner spinner-lg"></div>
 </div>
 
-<!-- ============================================
-     TOP HEADER
-============================================ -->
+<!-- TOP HEADER -->
 <header class="app-header">
   <div class="app-header-logo">
     <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
@@ -48,11 +44,8 @@
   </button>
 </header>
 
-<!-- ============================================
-     VIEW 1 — FEED
-============================================ -->
+<!-- VIEW 1 — FEED -->
 <section class="view" id="view-feed">
-
   <div class="feed-header">
     <h1 class="feed-header-title">Feed</h1>
     <button class="feed-header-refresh" id="feedRefreshBtn" aria-label="Refresh">
@@ -77,17 +70,6 @@
         <div class="post-skeleton-line" style="width: 90%;"></div>
         <div class="post-skeleton-line" style="width: 60%;"></div>
       </div>
-      <div class="post-skeleton">
-        <div class="post-skeleton-header">
-          <div class="post-skeleton-avatar"></div>
-          <div style="flex: 1;">
-            <div class="post-skeleton-line" style="width: 35%;"></div>
-            <div class="post-skeleton-line" style="width: 20%; height: 10px;"></div>
-          </div>
-        </div>
-        <div class="post-skeleton-line" style="width: 80%;"></div>
-        <div class="post-skeleton-line" style="width: 70%;"></div>
-      </div>
     </div>
   </div>
 
@@ -97,15 +79,11 @@
       <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
   </button>
-
 </section>
 
-<!-- ============================================
-     VIEW 2 — MATCHES
-============================================ -->
+<!-- VIEW 2 — MATCHES -->
 <section class="view" id="view-matches">
   <div class="view-inner">
-
     <div class="gift-claim-banner" id="giftClaimBanner" style="display: none;">
       <div class="gift-claim-icon" id="giftClaimIcon"></div>
       <div class="gift-claim-info">
@@ -141,16 +119,12 @@
     </div>
 
     <div class="match-list" id="matchList"></div>
-
   </div>
 </section>
 
-<!-- ============================================
-     VIEW 3 — CHATS
-============================================ -->
+<!-- VIEW 3 — CHATS -->
 <section class="view" id="view-chats">
   <div class="view-inner">
-
     <div class="section-header" style="margin-top: 4px;">
       <h2>Active Now</h2>
       <span class="section-header-count" id="activeCount">—</span>
@@ -169,18 +143,35 @@
         <p class="app-empty-text">Say hi to someone from your matches to start a conversation.</p>
       </div>
     </div>
-
   </div>
 </section>
 
-<!-- ============================================
-     VIEW 4 — PROFILE
-============================================ -->
+<!-- VIEW 4 — PROFILE -->
 <section class="view" id="view-profile">
   <div class="view-inner">
+    <!-- Cover Photo -->
+    <div class="profile-cover" id="profileCover">
+      <img id="profileCoverImg" src="" alt="" style="display: none;">
+      <button class="profile-cover-edit" id="profileCoverEdit" aria-label="Edit cover">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+      </button>
+    </div>
 
     <div class="profile-hero">
-      <div class="avatar avatar-xl" id="profileAvatar">U</div>
+      <div class="profile-avatar-wrapper" id="profileAvatarWrapper">
+        <div class="avatar avatar-xl" id="profileAvatar">U</div>
+        <img class="profile-avatar-img" id="profileAvatarImg" src="" alt="" style="display: none;">
+        <button class="profile-avatar-edit" id="profileAvatarEdit" aria-label="Edit avatar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </button>
+      </div>
+
       <h1 class="profile-name" id="profileName">Loading...</h1>
       <div class="profile-meta" id="profileMeta"></div>
       <p class="profile-bio" id="profileBio"></p>
@@ -250,7 +241,6 @@
     </div>
 
     <div class="profile-tab-content" id="tab-about">
-
       <div class="profile-section" id="interestsSection" style="display: none;">
         <div class="profile-section-title">Interests</div>
         <div class="profile-interests" id="profileInterests"></div>
@@ -325,7 +315,6 @@
           </div>
           <div class="profile-row-label" style="color: var(--danger); font-weight: 600;">Sign Out</div>
         </div>
-
       </div>
     </div>
 
@@ -346,18 +335,14 @@
     </div>
 
     <p style="text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 16px 0;">
-      Vibe v2.1.3
+      Vibe v2.1.9
     </p>
-
   </div>
 </section>
 
-<!-- ============================================
-     VIEW 5 — SETTINGS
-============================================ -->
+<!-- VIEW 5 — SETTINGS -->
 <section class="view" id="view-settings">
   <div class="view-inner">
-
     <div class="section-header" style="margin-top: 4px;">
       <h2>Settings</h2>
     </div>
@@ -492,7 +477,7 @@
           <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
           <span>Vibe</span>
         </div>
-        <span>v2.1.3</span>
+        <span>v2.1.9</span>
       </div>
     </div>
 
@@ -503,15 +488,11 @@
         </div>
       </div>
     </div>
-
   </div>
 </section>
 
-<!-- ============================================
-     BOTTOM NAVIGATION
-============================================ -->
+<!-- BOTTOM NAVIGATION -->
 <nav class="bottom-nav" id="bottomNav">
-
   <button class="nav-item active" data-view="feed" aria-label="Feed">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -550,14 +531,10 @@
     </svg>
     <span>Settings</span>
   </button>
-
 </nav>
 
-<!-- ============================================
-     CHAT ROOM
-============================================ -->
+<!-- CHAT ROOM -->
 <div class="chat-room" id="chatRoom">
-
   <div class="chat-room-header">
     <button class="chat-back" id="chatBackBtn" aria-label="Back">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -566,6 +543,7 @@
       </svg>
     </button>
     <div class="avatar avatar-sm" id="chatAvatar">U</div>
+    <img class="avatar avatar-sm" id="chatAvatarImg" src="" alt="" style="display: none; object-fit: cover;">
     <div class="chat-header-info">
       <div class="chat-header-name" id="chatName">—</div>
       <div class="chat-header-status" id="chatStatus">
@@ -604,13 +582,12 @@
   </div>
 
   <div class="chat-input-bar">
-    <textarea
-      class="chat-input"
-      id="chatInput"
-      placeholder="Type a message..."
-      rows="1"
-      maxlength="500"
-    ></textarea>
+    <button class="chat-attach-btn" id="chatAttachBtn" aria-label="Attach">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+      </svg>
+    </button>
+    <textarea class="chat-input" id="chatInput" placeholder="Type a message..." rows="1" maxlength="500"></textarea>
     <button class="chat-send" id="chatSendBtn" disabled aria-label="Send">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -618,12 +595,9 @@
       </svg>
     </button>
   </div>
-
 </div>
 
-<!-- ============================================
-     MOOD MODAL
-============================================ -->
+<!-- MOOD MODAL -->
 <div class="modal-overlay" id="moodModal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -667,12 +641,9 @@
   </div>
 </div>
 
-<!-- ============================================
-     GIFT POPUP MODAL
-============================================ -->
+<!-- GIFT POPUP MODAL -->
 <div class="gift-popup-overlay" id="giftPopup">
   <div class="gift-popup" id="giftPopupCard">
-
     <div class="gift-popup-header">Daily Reward</div>
 
     <div class="gift-popup-icon-wrap">
@@ -705,13 +676,10 @@
     </div>
 
     <button class="gift-popup-btn" id="giftPopupBtn">Collect Gift</button>
-
   </div>
 </div>
 
-<!-- ============================================
-     CREATE POST MODAL
-============================================ -->
+<!-- CREATE POST MODAL -->
 <div class="create-post-overlay" id="createPostOverlay">
   <div class="create-post-modal">
     <div class="create-post-handle"></div>
@@ -731,13 +699,7 @@
       <span class="create-post-user-name" id="createPostUserName">You</span>
     </div>
 
-    <textarea
-      class="create-post-input"
-      id="createPostInput"
-      placeholder="What's on your mind?"
-      maxlength="280"
-      rows="5"
-    ></textarea>
+    <textarea class="create-post-input" id="createPostInput" placeholder="What's on your mind?" maxlength="280" rows="5"></textarea>
 
     <div class="create-post-footer">
       <span class="create-post-counter" id="createPostCounter">0 / 280</span>
@@ -746,9 +708,7 @@
   </div>
 </div>
 
-<!-- ============================================
-     COMMENT SHEET
-============================================ -->
+<!-- COMMENT SHEET -->
 <div class="comment-sheet-overlay" id="commentSheetOverlay">
   <div class="comment-sheet">
     <div class="comment-sheet-header">
@@ -759,13 +719,7 @@
     <div class="comment-sheet-list" id="commentSheetList"></div>
 
     <div class="comment-input-bar">
-      <textarea
-        class="comment-input"
-        id="commentInput"
-        placeholder="Add a comment..."
-        rows="1"
-        maxlength="200"
-      ></textarea>
+      <textarea class="comment-input" id="commentInput" placeholder="Add a comment..." rows="1" maxlength="200"></textarea>
       <button class="comment-send-btn" id="commentSendBtn" disabled aria-label="Send">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -776,22 +730,16 @@
   </div>
 </div>
 
-<!-- ============================================
-     CHAT MENU SHEET (⋮ in chat room)
-============================================ -->
+<!-- CHAT MENU SHEET -->
 <div class="sheet-overlay" id="chatMenuSheet">
   <div class="sheet-modal">
     <div class="sheet-handle"></div>
-
     <div class="sheet-options" id="chatMenuOptions"></div>
-
     <button class="sheet-cancel" id="chatMenuCancel">Cancel</button>
   </div>
 </div>
 
-<!-- ============================================
-     BLOCKED USERS SHEET
-============================================ -->
+<!-- BLOCKED USERS SHEET -->
 <div class="sheet-overlay" id="blockedUsersSheet">
   <div class="sheet-modal">
     <div class="sheet-handle"></div>
@@ -808,9 +756,7 @@
   </div>
 </div>
 
-<!-- ============================================
-     REPORT USER SHEET
-============================================ -->
+<!-- REPORT USER SHEET -->
 <div class="sheet-overlay" id="reportSheet">
   <div class="sheet-modal">
     <div class="sheet-handle"></div>
@@ -840,13 +786,7 @@
       </button>
     </div>
 
-    <textarea
-      class="report-textarea"
-      id="reportDetails"
-      placeholder="Add details (optional)"
-      maxlength="300"
-      rows="3"
-    ></textarea>
+    <textarea class="report-textarea" id="reportDetails" placeholder="Add details (optional)" maxlength="300" rows="3"></textarea>
 
     <button class="btn btn-primary btn-block" id="reportSubmitBtn" disabled style="margin-bottom: 8px;">
       Submit Report
@@ -856,13 +796,10 @@
   </div>
 </div>
 
-<!-- ============================================
-     CHAT CONTEXT MENU (Long-press)
-============================================ -->
+<!-- CHAT CONTEXT MENU (Long-press) -->
 <div class="sheet-overlay" id="chatContextMenu">
   <div class="sheet-modal context-menu-modal">
     <div class="sheet-handle"></div>
-
     <div class="context-chat-preview" id="contextChatPreview">
       <div class="avatar" id="contextChatAvatar">S</div>
       <div class="context-chat-info">
@@ -870,43 +807,32 @@
         <div class="context-chat-sub" id="contextChatSub">Say hi to start</div>
       </div>
     </div>
-
     <div class="sheet-options" id="chatContextOptions"></div>
-
     <button class="sheet-cancel" id="chatContextCancel">Cancel</button>
   </div>
 </div>
 
-<!-- ============================================
-     USER PROFILE MODAL
-============================================ -->
+<!-- USER PROFILE MODAL -->
 <div class="sheet-overlay" id="userProfileSheet">
   <div class="sheet-modal profile-view-modal">
-
     <button class="profile-view-close" id="userProfileClose" aria-label="Close">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="6" x2="6" y2="18"></line>
         <line x1="6" y1="6" x2="18" y2="18"></line>
       </svg>
     </button>
-
     <div class="profile-view-content" id="userProfileContent"></div>
-
   </div>
 </div>
 
-<!-- ============================================
-     SAFETY CENTER SHEET
-============================================ -->
+<!-- SAFETY CENTER SHEET -->
 <div class="sheet-overlay" id="safetyCenterSheet">
   <div class="sheet-modal page-modal">
     <div class="sheet-handle"></div>
-
     <div class="page-header">
       <h2 class="page-title">Safety Center</h2>
       <p class="page-subtitle">Your safety matters. Here's how to stay safe on Vibe.</p>
     </div>
-
     <div class="page-content">
       <div class="info-card">
         <div class="info-card-icon" style="background: rgba(16,185,129,0.15); color: #10B981;">
@@ -919,7 +845,6 @@
           <div class="info-card-text">Never share personal information like passwords, bank details, or home address. Vibe will never ask for these.</div>
         </div>
       </div>
-
       <div class="info-card">
         <div class="info-card-icon" style="background: rgba(239,68,68,0.15); color: #EF4444;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -932,67 +857,27 @@
           <div class="info-card-text">If someone makes you uncomfortable, use Block or Report. We take every report seriously.</div>
         </div>
       </div>
-
-      <div class="info-card">
-        <div class="info-card-icon" style="background: rgba(251,191,36,0.15); color: #F59E0B;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-            <path d="M2 17l10 5 10-5"></path>
-            <path d="M2 12l10 5 10-5"></path>
-          </svg>
-        </div>
-        <div class="info-card-content">
-          <div class="info-card-title">Community Guidelines</div>
-          <div class="info-card-text">Be respectful. No harassment, hate speech, or inappropriate content. Help keep Vibe a safe space.</div>
-        </div>
-      </div>
-
-      <div class="info-card">
-        <div class="info-card-icon" style="background: rgba(37,99,235,0.15); color: #2563EB;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
-        </div>
-        <div class="info-card-content">
-          <div class="info-card-title">Report to Us</div>
-          <div class="info-card-text">For urgent safety concerns, report directly through the chat menu. Our team reviews every report.</div>
-        </div>
-      </div>
     </div>
-
     <button class="sheet-cancel" id="safetyCenterClose" style="margin-top: 16px;">Close</button>
   </div>
 </div>
 
-<!-- ============================================
-     ABOUT VIBE MODAL
-============================================ -->
+<!-- ABOUT VIBE MODAL -->
 <div class="sheet-overlay" id="aboutVibeSheet">
   <div class="sheet-modal page-modal">
     <div class="sheet-handle"></div>
-
     <div style="text-align: center; padding: 16px 0 20px;">
       <img src="assets/icons/android-chrome-192x192.png" alt="Vibe" style="width: 72px; height: 72px; border-radius: 20px; box-shadow: 0 8px 24px rgba(37,99,235,0.25); margin: 0 auto 14px;">
       <h2 style="font-family: Poppins; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 6px;">Vibe</h2>
-      <p style="font-size: 14px; color: var(--text-secondary);">Version 2.1.3</p>
+      <p style="font-size: 14px; color: var(--text-secondary);">Version 2.1.9</p>
     </div>
-
     <div class="page-content">
       <div class="info-card">
         <div class="info-card-content">
           <div class="info-card-title">Match Your Mood</div>
-          <div class="info-card-text">Vibe connects you with people who feel the same way today. Pick a mood, find your people, chat live.</div>
+          <div class="info-card-text">Vibe connects you with people who feel the same way today.</div>
         </div>
       </div>
-
-      <div class="info-card">
-        <div class="info-card-content">
-          <div class="info-card-title">Built with Love</div>
-          <div class="info-card-text">Made for Bangladesh. Designed for real connections.</div>
-        </div>
-      </div>
-
       <div class="about-links">
         <button class="about-link" id="aboutTermsBtn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1000,11 +885,7 @@
             <polyline points="14 2 14 8 20 8"></polyline>
           </svg>
           Terms & Privacy
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto;">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
         </button>
-
         <button class="about-link" id="aboutContactBtn">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
@@ -1013,87 +894,118 @@
           Contact Us
         </button>
       </div>
-
-      <p style="text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 16px 0 0;">
-        © 2026 Vibe. All rights reserved.
-      </p>
+      <p style="text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 16px 0 0;">© 2026 Vibe</p>
     </div>
-
     <button class="sheet-cancel" id="aboutVibeClose" style="margin-top: 16px;">Close</button>
   </div>
 </div>
 
-<!-- ============================================
-     TERMS & PRIVACY SHEET
-============================================ -->
+<!-- TERMS SHEET -->
 <div class="sheet-overlay" id="termsSheet">
   <div class="sheet-modal page-modal">
     <div class="sheet-handle"></div>
-
     <div class="page-header">
       <h2 class="page-title">Terms & Privacy</h2>
       <p class="page-subtitle">Last updated: January 2026</p>
     </div>
-
     <div class="page-content">
-      <div class="legal-section">
-        <h3 class="legal-heading">1. Acceptance of Terms</h3>
-        <p class="legal-text">By using Vibe, you agree to these terms. If you don't agree, please don't use the app.</p>
-      </div>
-
-      <div class="legal-section">
-        <h3 class="legal-heading">2. Age Requirement</h3>
-        <p class="legal-text">You must be at least 18 years old to use Vibe. We don't knowingly allow minors.</p>
-      </div>
-
-      <div class="legal-section">
-        <h3 class="legal-heading">3. Privacy Policy</h3>
-        <p class="legal-text">We collect your email, name, age, gender, city, and interests to help you find matches. We never sell your data to third parties.</p>
-      </div>
-
-      <div class="legal-section">
-        <h3 class="legal-heading">4. Content & Conduct</h3>
-        <p class="legal-text">Be respectful. No harassment, hate speech, spam, or inappropriate content. Violations may result in account suspension.</p>
-      </div>
-
-      <div class="legal-section">
-        <h3 class="legal-heading">5. Chat & Messaging</h3>
-        <p class="legal-text">Messages are stored securely. Don't share personal info like passwords or bank details. Daily chat limit applies.</p>
-      </div>
-
-      <div class="legal-section">
-        <h3 class="legal-heading">6. Data Deletion</h3>
-        <p class="legal-text">You can delete your account anytime. All your data will be permanently removed within 30 days.</p>
-      </div>
-
-      <div class="legal-section">
-        <h3 class="legal-heading">7. Safety</h3>
-        <p class="legal-text">Report any suspicious behavior. We review every report and take action. Your safety is our priority.</p>
-      </div>
-
-      <div class="legal-section">
-        <h3 class="legal-heading">8. Changes to Terms</h3>
-        <p class="legal-text">We may update these terms. Continued use means you accept the new terms.</p>
-      </div>
-
-      <div class="legal-section">
-        <h3 class="legal-heading">9. Contact</h3>
-        <p class="legal-text">Questions? Email us at support@vibe-app.com</p>
-      </div>
+      <div class="legal-section"><h3 class="legal-heading">1. Acceptance</h3><p class="legal-text">By using Vibe, you agree to these terms.</p></div>
+      <div class="legal-section"><h3 class="legal-heading">2. Age Requirement</h3><p class="legal-text">You must be 18+ to use Vibe.</p></div>
+      <div class="legal-section"><h3 class="legal-heading">3. Privacy</h3><p class="legal-text">We collect email, name, age, city, interests. Never sold to third parties.</p></div>
+      <div class="legal-section"><h3 class="legal-heading">4. Conduct</h3><p class="legal-text">Be respectful. No harassment, hate speech, or inappropriate content.</p></div>
+      <div class="legal-section"><h3 class="legal-heading">5. Data Deletion</h3><p class="legal-text">You can delete your account anytime.</p></div>
     </div>
-
     <button class="sheet-cancel" id="termsClose" style="margin-top: 16px;">Close</button>
   </div>
 </div>
 
-<!-- ============================================
-     CONFETTI CONTAINER
-============================================ -->
+<!-- IMAGE UPLOAD SHEET -->
+<div class="sheet-overlay" id="imageUploadSheet">
+  <div class="sheet-modal">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title" id="imageUploadTitle">Choose Photo</h2>
+    <p class="sheet-subtitle">Select a photo for your profile</p>
+
+    <div class="sheet-options">
+      <button class="sheet-option" id="pickFromGallery">
+        <div class="sheet-option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+        </div>
+        <div class="sheet-option-content">
+          <div class="sheet-option-label">Choose from Gallery</div>
+          <div class="sheet-option-description">Select from your photos</div>
+        </div>
+      </button>
+
+      <button class="sheet-option" id="pickFromCamera">
+        <div class="sheet-option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </div>
+        <div class="sheet-option-content">
+          <div class="sheet-option-label">Take Photo</div>
+          <div class="sheet-option-description">Use camera</div>
+        </div>
+      </button>
+
+      <button class="sheet-option danger" id="removePhotoBtn" style="display: none;">
+        <div class="sheet-option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </div>
+        <div class="sheet-option-content">
+          <div class="sheet-option-label">Remove Photo</div>
+        </div>
+      </button>
+    </div>
+
+    <button class="sheet-cancel" id="imageUploadCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- HIDDEN FILE INPUTS -->
+<input type="file" id="avatarFileInput" accept="image/*" style="display: none;">
+<input type="file" id="coverFileInput" accept="image/*" style="display: none;">
+<input type="file" id="chatPhotoFileInput" accept="image/*" style="display: none;">
+<input type="file" id="avatarCameraInput" accept="image/*" capture="user" style="display: none;">
+<input type="file" id="coverCameraInput" accept="image/*" capture="environment" style="display: none;">
+
+<!-- UPLOADING OVERLAY -->
+<div class="uploading-overlay" id="uploadingOverlay" style="display: none;">
+  <div class="uploading-card">
+    <div class="spinner spinner-lg"></div>
+    <div class="uploading-text" id="uploadingText">Uploading...</div>
+  </div>
+</div>
+
+<!-- MESSAGE CONTEXT MENU (Long-press on message) -->
+<div class="message-menu-overlay" id="messageMenuOverlay">
+  <div class="message-menu" id="messageMenu"></div>
+</div>
+
+<!-- IMAGE VIEWER (Full screen) -->
+<div class="image-viewer" id="imageViewer" style="display: none;">
+  <button class="image-viewer-close" id="imageViewerClose" aria-label="Close">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  </button>
+  <img class="image-viewer-img" id="imageViewerImg" src="" alt="">
+</div>
+
+<!-- CONFETTI CONTAINER -->
 <div class="confetti-container" id="confettiContainer"></div>
 
-<!-- ============================================
-     SCRIPTS
-============================================ -->
+<!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/supabase-client.js"></script>
@@ -1102,6 +1014,7 @@
 <script src="js/auth.js"></script>
 <script src="js/gifts.js"></script>
 <script src="js/posts.js"></script>
+<script src="js/upload.js"></script>
 <script src="js/app.js"></script>
 <script src="js/pwa.js"></script>
 
