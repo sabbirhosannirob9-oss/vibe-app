@@ -1,8 +1,21 @@
 /* ============================================================
    Vibe App — Posts & Feed Module
-   Version: 2.2.0
-   Handles: Feed, Posts, Likes, Comments, Post Images
+   Version: 2.2.2
+   Handles: Feed, Posts, Likes, Comments, Post Images, Likers
    ============================================================ */
+
+/* ------------------------------------------------------------
+   SAFE HTML ATTRIBUTE ESCAPE
+   ------------------------------------------------------------ */
+function escapeAttr(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 /* ------------------------------------------------------------
    FETCH FEED (all users' posts)
@@ -70,7 +83,7 @@ async function fetchFeed(limit = 20, offset = 0) {
       image_height: p.image_height || null,
       created_at: p.created_at,
       author_name: profile.name || 'User',
-      author_verified: profile.is_verified || false,
+      author_verified: !!profile.is_verified,
       author_avatar: profile.avatar_url || null,
       like_count: likeCountMap[p.id] || 0,
       comment_count: commentCountMap[p.id] || 0,
@@ -141,12 +154,59 @@ async function fetchUserPosts(userId, limit = 20) {
     image_height: p.image_height || null,
     created_at: p.created_at,
     author_name: profile?.name || 'User',
-    author_verified: profile?.is_verified || false,
+    author_verified: !!profile?.is_verified,
     author_avatar: profile?.avatar_url || null,
     like_count: likeCountMap[p.id] || 0,
     comment_count: commentCountMap[p.id] || 0,
     liked_by_me: !!likedByMeMap[p.id]
   }));
+}
+
+/* ------------------------------------------------------------
+   FETCH LIKERS (v2.2.2)
+   Get list of users who liked a post
+   ------------------------------------------------------------ */
+async function fetchPostLikers(postId, limit = 100) {
+  if (!postId) return [];
+
+  const { data: likes, error } = await sb
+    .from('post_likes')
+    .select('user_id, created_at')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('fetchPostLikers error:', error);
+    return [];
+  }
+
+  if (!likes || likes.length === 0) return [];
+
+  const userIds = likes.map(l => l.user_id);
+
+  const { data: profiles } = await sb
+    .from('profiles')
+    .select('id, name, is_verified, avatar_url, last_seen')
+    .in('id', userIds);
+
+  const profileMap = {};
+  (profiles || []).forEach(p => profileMap[p.id] = p);
+
+  return likes
+    .map(l => {
+      const p = profileMap[l.user_id];
+      if (!p) return null;
+      return {
+        id: p.id,
+        name: p.name || 'User',
+        is_verified: !!p.is_verified,
+        avatar_url: p.avatar_url || null,
+        last_seen: p.last_seen,
+        liked_at: l.created_at
+      };
+    })
+    .filter(Boolean);
 }
 
 /* ------------------------------------------------------------
@@ -240,7 +300,7 @@ async function fetchComments(postId) {
       content: c.content,
       created_at: c.created_at,
       author_name: profile.name || 'User',
-      author_verified: profile.is_verified || false,
+      author_verified: !!profile.is_verified,
       author_avatar: profile.avatar_url || null,
       is_mine: c.user_id === window.app.user.id
     };
@@ -288,22 +348,22 @@ function renderPostCard(post) {
 
   // Avatar (image or fallback)
   const avatarHTML = post.author_avatar
-    ? `<img src="${post.author_avatar}" class="post-card-avatar-img" alt="">`
+    ? `<img src="${escapeAttr(post.author_avatar)}" class="post-card-avatar-img" alt="" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex')"><span class="post-card-avatar-fallback" style="display:none">${initial}</span>`
     : `<span class="post-card-avatar-fallback">${initial}</span>`;
 
-  // Content HTML (only if content exists)
+  // Content HTML
   const contentHTML = post.content
     ? `<div class="post-card-content">${escapeHtml(post.content)}</div>`
     : '';
 
-  // Image HTML (only if image exists)
+  // Image HTML (safe URL + data attribute)
   const imageHTML = post.image_url
     ? `<div class="post-card-image-wrap">
-         <img src="${post.image_url}" 
+         <img src="${escapeAttr(post.image_url)}" 
               class="post-card-image" 
               alt="Post image"
               loading="lazy"
-              onclick="event.stopPropagation(); openImageViewer('${post.image_url}')">
+              data-viewer-url="${escapeAttr(post.image_url)}">
        </div>`
     : '';
 
@@ -366,12 +426,53 @@ function renderPostCard(post) {
 }
 
 /* ------------------------------------------------------------
+   RENDER LIKER ITEM (v2.2.2)
+   ------------------------------------------------------------ */
+function renderLikerItem(user) {
+  const initial = (user.name || 'U').charAt(0).toUpperCase();
+  const status = typeof getActiveStatus === 'function'
+    ? getActiveStatus(user.last_seen)
+    : { color: 'gray', label: '' };
+
+  const avatarHTML = user.avatar_url
+    ? `<img src="${escapeAttr(user.avatar_url)}" class="liker-avatar-img" alt=""
+            onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex')">
+       <span class="liker-avatar-fallback" style="display:none">${initial}</span>`
+    : `<span class="liker-avatar-fallback">${initial}</span>`;
+
+  return `
+    <div class="liker-item" data-user-id="${user.id}">
+      <div class="liker-avatar">
+        ${avatarHTML}
+        <span class="status-dot ${status.color}" style="position:absolute;bottom:0;right:0;border:2px solid var(--bg-primary);width:12px;height:12px;"></span>
+      </div>
+      <div class="liker-info">
+        <div class="liker-name">
+          ${escapeHtml(user.name)}
+          ${user.is_verified ? `<span class="verified-badge badge-sm" aria-label="Verified">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </span>` : ''}
+        </div>
+        <div class="liker-time">${timeAgo(user.liked_at)}</div>
+      </div>
+      <div class="liker-arrow">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </div>
+    </div>
+  `;
+}
+
+/* ------------------------------------------------------------
    RENDER COMMENT ITEM
    ------------------------------------------------------------ */
 function renderCommentItem(comment) {
   const initial = (comment.author_name || 'U').charAt(0).toUpperCase();
   const avatarHTML = comment.author_avatar
-    ? `<img src="${comment.author_avatar}" class="comment-avatar-img" alt="">`
+    ? `<img src="${escapeAttr(comment.author_avatar)}" class="comment-avatar-img" alt="" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex')"><span class="comment-avatar-fallback" style="display:none">${initial}</span>`
     : `<span class="comment-avatar-fallback">${initial}</span>`;
 
   const deleteBtnHTML = comment.is_mine
@@ -426,6 +527,7 @@ function renderEmptyFeed() {
    ------------------------------------------------------------ */
 window.fetchFeed = fetchFeed;
 window.fetchUserPosts = fetchUserPosts;
+window.fetchPostLikers = fetchPostLikers;
 window.createPost = createPost;
 window.deletePost = deletePost;
 window.toggleLike = toggleLike;
@@ -433,7 +535,8 @@ window.fetchComments = fetchComments;
 window.addComment = addComment;
 window.deleteComment = deleteComment;
 window.renderPostCard = renderPostCard;
+window.renderLikerItem = renderLikerItem;
 window.renderCommentItem = renderCommentItem;
 window.renderEmptyFeed = renderEmptyFeed;
 
-console.log('[Vibe] posts.js loaded v2.2.0');
+console.log('[Vibe] posts.js loaded v2.2.2');

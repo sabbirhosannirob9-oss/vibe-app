@@ -1,17 +1,20 @@
 /* ============================================
-   VIBE — Main App Logic — FINAL v2.2.0
+   VIBE — Main App Logic — FINAL v2.2.2
    ============================================
    Features:
    - Auth + Profile + Mood system
-   - Feed + Posts (with image)
+   - Feed + Posts (with image + likers)
    - Matches + Active users
    - Chat + Realtime + Read receipts + Typing
-   - Chat photo send + Message menu (Copy/Reply/Unsend)
+   - Chat photo send + Message menu
    - Gifts + Streaks + Confetti
-   - Full-screen Profile Page (Posts + About tabs)
+   - Full-screen Profile Page
    - Avatar + Cover upload
+   - Edit Profile Sheet
    - Privacy + Block + Report
    - Audio unlock + Notification
+   - SMART BOTTOM NAV (badge, auto-hide, ripple, long-press)
+   - LIKERS SHEET (who liked)
 ============================================ */
 
 // ============================================
@@ -50,6 +53,7 @@ const app = {
   soundEnabled: true,
   vibrationEnabled: true,
   notificationsEnabled: true,
+  unreadChatCount: 0,
   _pendingPostImage: null,
   _settingsInited: false,
   _navInited: false,
@@ -58,7 +62,10 @@ const app = {
   _backInited: false,
   _chatMenuInited: false,
   _contextMenuInited: false,
-  _newFeaturesBooted: false
+  _newFeaturesBooted: false,
+  _smartNavInited: false,
+  _lastScrollY: 0,
+  _navHidden: false
 };
 
 // ============================================
@@ -88,6 +95,7 @@ const app = {
 
     renderProfileView();
     setupNavigation();
+    setupSmartNav();
     setupMoodModal();
     setupChatRoom();
     setupProfileActions();
@@ -103,7 +111,6 @@ const app = {
     setupNotifications();
     renderEmptyStates();
 
-    // v2.2.0 — boot new features
     bootVibeNewFeatures();
 
     hideAppLoading();
@@ -128,13 +135,14 @@ const app = {
 
     setInterval(updateLastSeen, 2 * 60 * 1000);
     setInterval(loadActiveUsers, 60 * 1000);
+    setInterval(refreshNavBadge, 30 * 1000);
 
     window.addEventListener('themechange', () => {
       const toggle = document.getElementById('profileDarkToggle');
       if (toggle) updateProfileToggleState(toggle);
     });
 
-    console.log('✅ App initialized (v2.2.0)');
+    console.log('✅ App initialized (v2.2.2)');
 
   } catch (err) {
     console.error('App init error:', err);
@@ -186,7 +194,220 @@ function saveUserPreference(key, value) {
 }
 
 // ============================================
-// BACK BUTTON HANDLING
+// SMART BOTTOM NAVIGATION
+// ============================================
+function setupSmartNav() {
+  if (app._smartNavInited) return;
+  app._smartNavInited = true;
+
+  const nav = document.querySelector('.bottom-nav');
+  if (!nav) return;
+
+  // ─── TAP FEEDBACK (RIPPLE + HAPTIC) ───
+  nav.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('touchstart', (e) => {
+      createNavRipple(item, e);
+      if (app.vibrationEnabled && navigator.vibrate) {
+        navigator.vibrate(8);
+      }
+    }, { passive: true });
+
+    item.addEventListener('click', (e) => {
+      if (item.__longPressed) {
+        item.__longPressed = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    });
+
+    // ─── LONG-PRESS HANDLERS ───
+    let pressTimer = null;
+
+    const startPress = () => {
+      pressTimer = setTimeout(() => {
+        item.__longPressed = true;
+
+        if (app.vibrationEnabled && navigator.vibrate) {
+          navigator.vibrate([10, 30, 10]);
+        }
+
+        const view = item.dataset.view;
+
+        if (view === 'feed') {
+          const feedList = document.getElementById('feedList');
+          if (feedList) feedList.scrollTop = 0;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          showToast('Feed scroll → top', 'info');
+        } else if (view === 'chats') {
+          markAllChatsRead();
+        } else if (view === 'profile') {
+          openEditProfileSheet();
+        } else if (view === 'matches') {
+          loadMatches();
+          showToast('Refreshing matches…', 'info');
+        } else if (view === 'settings') {
+          toggleTheme();
+          showToast('Theme toggled', 'info');
+        }
+      }, 550);
+    };
+
+    const cancelPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
+    item.addEventListener('touchstart', startPress, { passive: true });
+    item.addEventListener('touchend', cancelPress);
+    item.addEventListener('touchmove', cancelPress);
+    item.addEventListener('touchcancel', cancelPress);
+    item.addEventListener('mousedown', startPress);
+    item.addEventListener('mouseup', cancelPress);
+    item.addEventListener('mouseleave', cancelPress);
+
+    // ─── DOUBLE-TAP PROFILE → EDIT ───
+    let lastTap = 0;
+    item.addEventListener('click', () => {
+      if (item.dataset.view === 'profile') {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+          openEditProfileSheet();
+          lastTap = 0;
+        } else {
+          lastTap = now;
+        }
+      }
+    });
+  });
+
+  // ─── AUTO-HIDE ON SCROLL ───
+  let scrollTimeout = null;
+  window.addEventListener('scroll', () => {
+    if (scrollTimeout) return;
+
+    scrollTimeout = setTimeout(() => {
+      scrollTimeout = null;
+
+      const y = window.scrollY;
+      const navEl = document.querySelector('.bottom-nav');
+      if (!navEl) return;
+
+      if (y < 30) {
+        navEl.classList.remove('nav-hidden');
+        app._navHidden = false;
+        return;
+      }
+
+      if (document.getElementById('chatRoom')?.classList.contains('open')) return;
+
+      const openSheet = document.querySelector(
+        '.modal-overlay.open, .gift-popup-overlay.open, .create-post-overlay.open, .comment-sheet-overlay.open, .sheet-overlay.open, .profile-page.open, .edit-profile-overlay.open'
+      );
+      if (openSheet) return;
+
+      const delta = y - app._lastScrollY;
+
+      if (delta > 8 && !app._navHidden) {
+        navEl.classList.add('nav-hidden');
+        app._navHidden = true;
+      } else if (delta < -8 && app._navHidden) {
+        navEl.classList.remove('nav-hidden');
+        app._navHidden = false;
+      }
+
+      app._lastScrollY = y;
+    }, 50);
+  }, { passive: true });
+
+  // ─── KEYBOARD-AWARE ───
+  document.addEventListener('focusin', (e) => {
+    if (e.target.matches('input, textarea')) {
+      nav.classList.add('nav-keyboard');
+    }
+  });
+  document.addEventListener('focusout', () => {
+    nav.classList.remove('nav-keyboard');
+  });
+
+  // ─── NAV DOT FOR NEW NOTIFICATIONS ───
+  updateNavDots();
+}
+
+function createNavRipple(item, e) {
+  const ripple = document.createElement('span');
+  ripple.className = 'nav-ripple';
+
+  const rect = item.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e;
+  const x = (touch.clientX || (rect.left + rect.width / 2)) - rect.left;
+  const y = (touch.clientY || (rect.top + rect.height / 2)) - rect.top;
+
+  const size = Math.max(rect.width, rect.height) * 1.6;
+
+  ripple.style.width = size + 'px';
+  ripple.style.height = size + 'px';
+  ripple.style.left = (x - size / 2) + 'px';
+  ripple.style.top = (y - size / 2) + 'px';
+
+  item.appendChild(ripple);
+
+  setTimeout(() => {
+    if (ripple.parentNode) ripple.remove();
+  }, 600);
+}
+
+function updateNavDots() {
+  const profileNav = document.querySelector('.nav-item[data-view="profile"]');
+  if (!profileNav) return;
+
+  const hasAvatar = !!app.profile?.avatar_url;
+  const hasCover = !!app.profile?.cover_url;
+  const hasBio = !!app.profile?.bio;
+
+  if (!hasAvatar && !hasCover && !hasBio) {
+    profileNav.classList.add('has-dot');
+  } else {
+    profileNav.classList.remove('has-dot');
+  }
+}
+
+async function markAllChatsRead() {
+  if (!app.chats || app.chats.length === 0) {
+    showToast('No chats to mark', 'info');
+    return;
+  }
+
+  try {
+    const roomIds = app.chats.map(c => c.room.id);
+
+    const { error } = await sb
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .in('room_id', roomIds)
+      .neq('sender_id', app.user.id)
+      .is('read_at', null);
+
+    if (error) throw error;
+
+    showToast('All chats marked as read', 'success');
+    await loadChats();
+  } catch (err) {
+    console.error('Mark all read error:', err);
+    showToast('Failed to mark all read', 'error');
+  }
+}
+
+// ⚡ Real-time nav badge refresh
+function refreshNavBadge() {
+  if (app.currentView === 'chats') return; // already in chats
+  loadChats();
+}
+
+// ============================================
+// BACK BUTTON
 // ============================================
 function setupBackButton() {
   if (app._backInited) return;
@@ -195,7 +416,22 @@ function setupBackButton() {
   history.pushState({ vibe: true }, '', location.href);
 
   window.addEventListener('popstate', (e) => {
-    // v2.2.0 — Full profile page
+    const editSheet = document.getElementById('editProfileSheet');
+    if (editSheet && editSheet.classList.contains('open')) {
+      e.preventDefault();
+      history.pushState(null, '', location.href);
+      closeEditProfileSheet();
+      return;
+    }
+
+    const likersSheet = document.getElementById('likersSheet');
+    if (likersSheet && likersSheet.classList.contains('open')) {
+      e.preventDefault();
+      history.pushState(null, '', location.href);
+      closeLikersSheet();
+      return;
+    }
+
     const profilePage = document.getElementById('userProfilePage');
     if (profilePage && profilePage.classList.contains('open')) {
       e.preventDefault();
@@ -304,6 +540,7 @@ function switchView(view, updateHash = true) {
   }
 
   window.scrollTo({ top: 0, behavior: 'instant' });
+  app._lastScrollY = 0;
 
   if (view === 'feed') {
     if (app.feedPosts.length === 0) {
@@ -325,6 +562,7 @@ function switchView(view, updateHash = true) {
     loadGiftStats();
     if (app.profileTab === 'posts') loadMyPosts();
     if (typeof setupProfileImageButtons === 'function') setupProfileImageButtons();
+    if (typeof updateNavDots === 'function') updateNavDots();
   }
 
   if (view === 'matches') {
@@ -354,7 +592,6 @@ async function loadBlockedUsers() {
 
     if (error) throw error;
     app.blockedUsers = (data || []).map(b => b.blocked_id);
-    console.log(`🚫 Blocked: ${app.blockedUsers.length} users`);
   } catch (err) {
     console.error('Load blocked error:', err);
     app.blockedUsers = [];
@@ -376,7 +613,6 @@ async function blockUser(userId) {
     app.blockedUsers.push(userId);
     showToast('User blocked', 'success');
 
-    // Close profile/chat if viewing blocked user
     if (app.viewingProfile?.id === userId) closeFullProfile();
 
     await loadChats();
@@ -404,7 +640,6 @@ async function unblockUser(userId) {
 
     await loadBlockedUsersList();
 
-    // Refresh profile page if viewing
     if (app.viewingProfile?.id === userId) {
       const blockLabel = document.getElementById('ppBlockBtnLabel');
       const blockBtn = document.getElementById('ppBlockBtn');
@@ -483,7 +718,7 @@ async function loadBlockedUsersList() {
 }
 
 // ============================================
-// REPORT USER
+// REPORT
 // ============================================
 function setupReportSheet() {
   document.querySelectorAll('.report-reason').forEach(btn => {
@@ -571,7 +806,7 @@ function closeSheet(id) {
 }
 
 // ============================================
-// CHAT MENU (⋮ in chat room)
+// CHAT MENU
 // ============================================
 function setupChatMenu() {
   if (app._chatMenuInited) return;
@@ -659,7 +894,6 @@ function openChatMenu() {
       } else if (action === 'report') {
         openReportSheet(partner.id);
       } else if (action === 'view-profile') {
-        // v2.2.0 — full profile page
         openFullProfile(partner.id);
       }
     });
@@ -673,7 +907,7 @@ function closeChatMenu() {
 }
 
 // ============================================
-// CHAT CONTEXT MENU (Long-press on chat list)
+// CHAT CONTEXT MENU
 // ============================================
 function setupChatContextMenu() {
   if (app._contextMenuInited) return;
@@ -683,8 +917,6 @@ function setupChatContextMenu() {
   document.getElementById('chatContextMenu')?.addEventListener('click', (e) => {
     if (e.target.id === 'chatContextMenu') closeChatContextMenu();
   });
-
-  // v2.2.0 — old userProfileSheet listeners removed
 }
 
 function attachChatListLongPress(container) {
@@ -724,7 +956,6 @@ function attachChatListLongPress(container) {
     item.addEventListener('touchend', cancelPress);
     item.addEventListener('touchmove', cancelPress);
     item.addEventListener('touchcancel', cancelPress);
-
     item.addEventListener('mousedown', startPress);
     item.addEventListener('mouseup', cancelPress);
     item.addEventListener('mouseleave', cancelPress);
@@ -840,7 +1071,6 @@ function showChatContextMenu(chatItem) {
       </div>
       <div class="sheet-option-content">
         <div class="sheet-option-label">Block User</div>
-        <div class="sheet-option-description">You won't see their messages</div>
       </div>
     </button>
 
@@ -853,7 +1083,6 @@ function showChatContextMenu(chatItem) {
       </div>
       <div class="sheet-option-content">
         <div class="sheet-option-label">Report User</div>
-        <div class="sheet-option-description">Help us keep Vibe safe</div>
       </div>
     </button>
   `;
@@ -881,7 +1110,6 @@ async function handleContextAction(action) {
   if (action === 'message') {
     openChatWithUser(ctx.userId, ctx.name);
   } else if (action === 'view-profile') {
-    // v2.2.0 — full profile page
     openFullProfile(ctx.userId);
   } else if (action === 'mute') {
     await toggleMuteChat(ctx.chatId, !ctx.isMuted);
@@ -967,7 +1195,7 @@ async function deleteChatForMe(chatId) {
 }
 
 // ============================================
-// FULL PROFILE PAGE (v2.2.0)
+// FULL PROFILE PAGE
 // ============================================
 async function openFullProfile(userId) {
   if (!userId) return;
@@ -977,7 +1205,6 @@ async function openFullProfile(userId) {
     return;
   }
 
-  // Own profile → switch to profile tab
   if (userId === app.user.id) {
     switchView('profile');
     return;
@@ -1039,7 +1266,6 @@ function renderFullProfile(profile) {
   const titleEl = document.getElementById('profilePageTitle');
   if (titleEl) titleEl.textContent = p.name || 'Profile';
 
-  // Cover
   const coverImg = document.getElementById('ppCoverImg');
   const coverGrad = document.getElementById('ppCoverGradient');
   if (coverImg) {
@@ -1054,7 +1280,6 @@ function renderFullProfile(profile) {
     }
   }
 
-  // Avatar
   const avatarImg = document.getElementById('ppAvatarImg');
   const avatarFallback = document.getElementById('ppAvatarFallback');
   if (p.avatar_url) {
@@ -1074,20 +1299,17 @@ function renderFullProfile(profile) {
     }
   }
 
-  // Status dot
   const dot = document.getElementById('ppStatusDot');
   if (dot) {
     const status = getActiveStatus(p.last_seen);
     dot.className = 'pp-status-dot ' + status.color;
   }
 
-  // Name + verified
   const nameEl = document.getElementById('ppName');
   if (nameEl) {
     nameEl.innerHTML = escapeHtml(p.name || 'User') + verifiedBadgeHTML(p.is_verified, 'lg');
   }
 
-  // Meta
   const metaEl = document.getElementById('ppMeta');
   if (metaEl) {
     const parts = [];
@@ -1098,11 +1320,9 @@ function renderFullProfile(profile) {
       parts.push(`<span class="pp-meta-item">${getIcon(iconKey)}<span>${label}</span></span>`);
     }
     if (p.city) parts.push(`<span class="pp-meta-item">${getIcon('meta_city')}<span>${escapeHtml(p.city)}</span></span>`);
-
     metaEl.innerHTML = parts.join('<span class="pp-meta-dot"></span>');
   }
 
-  // Bio
   const bioEl = document.getElementById('ppBio');
   if (bioEl) {
     if (p.bio) {
@@ -1114,13 +1334,11 @@ function renderFullProfile(profile) {
     }
   }
 
-  // Stats
   const streakEl = document.getElementById('ppStreak');
   const giftsEl = document.getElementById('ppGifts');
   if (streakEl) streakEl.textContent = p.streak_count || 0;
   if (giftsEl) giftsEl.textContent = p.total_gifts || 0;
 
-  // Interests
   const interestsWrap = document.getElementById('ppInterestsWrap');
   const interestsEl = document.getElementById('ppInterests');
   if (p.interests && p.interests.length > 0) {
@@ -1132,7 +1350,6 @@ function renderFullProfile(profile) {
     if (interestsWrap) interestsWrap.style.display = 'none';
   }
 
-  // Block button
   const blockLabel = document.getElementById('ppBlockBtnLabel');
   const blockBtn = document.getElementById('ppBlockBtn');
   if (blockLabel && blockBtn) {
@@ -1141,7 +1358,6 @@ function renderFullProfile(profile) {
     blockBtn.classList.toggle('unblock', blocked);
   }
 
-  // About
   const aboutAge = document.getElementById('ppAboutAge');
   const aboutGender = document.getElementById('ppAboutGender');
   const aboutCity = document.getElementById('ppAboutCity');
@@ -1236,18 +1452,15 @@ function switchProfileTab(tab) {
 }
 
 function setupProfilePageButtons() {
-  // Back
   document.getElementById('profilePageBack')?.addEventListener('click', () => {
     history.back();
   });
 
-  // Menu (⋮) — use existing chat context sheet style with action choices
   document.getElementById('profilePageMenu')?.addEventListener('click', () => {
     const p = app.viewingProfile;
     if (!p) return;
     const blocked = isBlocked(p.id);
 
-    // Reuse the chat context menu sheet pattern
     const sheet = document.getElementById('chatContextMenu');
     const optionsEl = document.getElementById('chatContextOptions');
     const avatarEl = document.getElementById('contextChatAvatar');
@@ -1329,7 +1542,6 @@ function setupProfilePageButtons() {
     document.body.style.overflow = 'hidden';
   });
 
-  // Message button
   document.getElementById('ppMessageBtn')?.addEventListener('click', async () => {
     const p = app.viewingProfile;
     if (!p) return;
@@ -1337,7 +1549,6 @@ function setupProfilePageButtons() {
     await openChatWithUser(p.id, p.name);
   });
 
-  // Block button (direct)
   document.getElementById('ppBlockBtn')?.addEventListener('click', async () => {
     const p = app.viewingProfile;
     if (!p) return;
@@ -1349,21 +1560,18 @@ function setupProfilePageButtons() {
     }
   });
 
-  // Report button (direct)
   document.getElementById('ppReportBtn')?.addEventListener('click', () => {
     const p = app.viewingProfile;
     if (!p) return;
     openReportSheet(p.id);
   });
 
-  // Tabs
   document.querySelectorAll('.pp-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       switchProfileTab(tab.dataset.tab);
     });
   });
 
-  // Escape key (desktop)
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && app.viewingProfile) {
       closeFullProfile();
@@ -1445,8 +1653,6 @@ async function loadFeed(reset = true) {
     app.feedPosts = app.feedPosts.concat(posts);
     app.feedOffset += posts.length;
     if (posts.length < 20) app.feedHasMore = false;
-
-    console.log(`📰 Feed: ${posts.length} posts`);
   } catch (err) {
     console.error('Load feed error:', err);
   } finally {
@@ -1545,7 +1751,16 @@ function attachPostListeners(container) {
   container.querySelectorAll('.like-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+
+      const countSpan = btn.querySelector('.action-count');
       const postId = parseInt(btn.dataset.postId, 10);
+
+      // v2.2.2 — Count-এ tap → likers sheet
+      if (countSpan && (e.target === countSpan || countSpan.contains(e.target))) {
+        openLikersSheet(postId);
+        return;
+      }
+
       const post = findPostById(postId);
       if (!post) return;
 
@@ -1554,7 +1769,6 @@ function attachPostListeners(container) {
       post.like_count += wasLiked ? -1 : 1;
 
       btn.classList.toggle('liked', post.liked_by_me);
-      const countSpan = btn.querySelector('.action-count');
       if (countSpan) countSpan.textContent = post.like_count;
       const svg = btn.querySelector('svg');
       if (svg) svg.setAttribute('fill', post.liked_by_me ? 'currentColor' : 'none');
@@ -1583,6 +1797,15 @@ function attachPostListeners(container) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       showPostMenu(parseInt(btn.dataset.postId, 10), btn);
+    });
+  });
+
+  // Image viewer (tap on post image)
+  container.querySelectorAll('.post-card-image[data-viewer-url]').forEach(img => {
+    img.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const url = img.dataset.viewerUrl;
+      if (url && typeof openImageViewer === 'function') openImageViewer(url);
     });
   });
 }
@@ -1661,6 +1884,7 @@ async function submitPost() {
       created_at: newPost.created_at || new Date().toISOString(),
       author_name: app.profile.name,
       author_verified: app.profile.is_verified || false,
+      author_avatar: app.profile.avatar_url || null,
       like_count: 0,
       comment_count: 0,
       liked_by_me: false
@@ -1833,6 +2057,7 @@ async function submitComment() {
       created_at: comment.created_at,
       author_name: app.profile?.name || 'You',
       author_verified: app.profile?.is_verified || false,
+      author_avatar: app.profile?.avatar_url || null,
       is_mine: true
     });
     listEl.insertAdjacentHTML('beforeend', html);
@@ -1893,7 +2118,8 @@ function renderMyPosts() {
   listEl.innerHTML = app.myPosts.map(p => renderPostCard({
     ...p,
     author_name: app.profile.name,
-    author_verified: app.profile.is_verified
+    author_verified: app.profile.is_verified,
+    author_avatar: app.profile.avatar_url || null
   })).join('');
 
   attachPostListeners(listEl);
@@ -2261,7 +2487,6 @@ async function openChatRoom(partner) {
 
   cancelReply();
 
-  // v2.2.0 — new features
   unlockAudioOnFirstTap();
   setupChatAttachButton();
   attachMessageLongPress();
@@ -2272,6 +2497,9 @@ async function openChatRoom(partner) {
   subscribeToTyping();
 
   await markMessagesAsRead();
+
+  // Clear badge for this room
+  setTimeout(() => refreshNavBadge(), 500);
 
   setTimeout(() => document.getElementById('chatInput')?.focus(), 350);
 }
@@ -2508,7 +2736,7 @@ async function markMessagesAsRead() {
 }
 
 // ============================================
-// TYPING INDICATOR
+// TYPING
 // ============================================
 function subscribeToTyping() {
   if (!app.currentRoom || !app.currentPartner) return;
@@ -2518,14 +2746,10 @@ function subscribeToTyping() {
   app.typingChannel = sb
     .channel('typing-' + app.currentRoom.id)
     .on('broadcast', { event: 'typing' }, (payload) => {
-      if (payload.payload.userId === app.currentPartner.id) {
-        showPartnerTyping();
-      }
+      if (payload.payload.userId === app.currentPartner.id) showPartnerTyping();
     })
     .on('broadcast', { event: 'stop_typing' }, (payload) => {
-      if (payload.payload.userId === app.currentPartner.id) {
-        hidePartnerTyping();
-      }
+      if (payload.payload.userId === app.currentPartner.id) hidePartnerTyping();
     })
     .subscribe();
 }
@@ -2581,9 +2805,7 @@ function hidePartnerTyping() {
 
   if (typeof removeTypingBubble === 'function') removeTypingBubble();
 
-  if (app.currentPartner) {
-    updatePartnerStatus(app.currentPartner.last_seen);
-  }
+  if (app.currentPartner) updatePartnerStatus(app.currentPartner.last_seen);
 
   clearTimeout(__typingHideTimer);
   __typingHideTimer = null;
@@ -2597,6 +2819,9 @@ function attachMessageSwipe(container) {
   const MAX_SWIPE = 80;
 
   container.querySelectorAll('.msg').forEach(msgEl => {
+    if (msgEl.__swipeBound) return;
+    msgEl.__swipeBound = true;
+
     let startX = 0;
     let currentX = 0;
     let isDragging = false;
@@ -2672,17 +2897,13 @@ function attachMessageSwipe(container) {
     msgEl.addEventListener('touchcancel', onEnd);
 
     msgEl.addEventListener('mousedown', (e) => onStart(e.clientX));
-    document.addEventListener('mousemove', (e) => {
-      if (isDragging) onMove(e.clientX, e);
-    });
-    document.addEventListener('mouseup', () => {
-      if (isDragging) onEnd();
-    });
+    document.addEventListener('mousemove', (e) => { if (isDragging) onMove(e.clientX, e); });
+    document.addEventListener('mouseup', () => { if (isDragging) onEnd(); });
   });
 }
 
 // ============================================
-// REPLY SYSTEM
+// REPLY
 // ============================================
 function showReplyPreview(msgText, senderName) {
   app.currentReplyTo = { text: msgText, sender: senderName };
@@ -2790,7 +3011,6 @@ function appendMessage(msg) {
 
   attachMessageSwipe(el);
   attachMessageLongPress();
-
   scrollToBottom();
 
   if (!mine) {
@@ -2827,7 +3047,7 @@ function updateMessageReadStatus(msg) {
 }
 
 // ============================================
-// MESSAGE NOTIFICATION
+// NOTIFICATION
 // ============================================
 async function showMessageNotification(msg, senderName) {
   if (!app.notificationsEnabled) return;
@@ -2863,7 +3083,7 @@ async function showMessageNotification(msg, senderName) {
 }
 
 // ============================================
-// LOAD CHATS LIST
+// LOAD CHATS LIST + NAV BADGE
 // ============================================
 async function loadChats() {
   const listEl = document.getElementById('chatList');
@@ -2885,6 +3105,7 @@ async function loadChats() {
     listEl.querySelectorAll('.chat-item').forEach(e => e.remove());
     if (emptyEl) emptyEl.style.display = 'flex';
     updateChatBadge(0);
+    app.unreadChatCount = 0;
     return;
   }
 
@@ -2907,8 +3128,21 @@ async function loadChats() {
       .limit(1)
       .maybeSingle();
 
+    // ⚡ Count unread messages for this room
+    const { count: unreadCount } = await sb
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('room_id', room.id)
+      .neq('sender_id', app.user.id)
+      .is('read_at', null);
+
     const partnerId = room.user1_id === app.user.id ? room.user2_id : room.user1_id;
-    return { room, partner: profileMap[partnerId], lastMessage: lastMsg };
+    return {
+      room,
+      partner: profileMap[partnerId],
+      lastMessage: lastMsg,
+      unreadCount: unreadCount || 0
+    };
   }));
 
   const activeChats = chatData
@@ -2924,6 +3158,10 @@ async function loadChats() {
     });
 
   app.chats = activeChats;
+
+  // ⚡ Total unread count (for badge)
+  const totalUnread = activeChats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+  app.unreadChatCount = totalUnread;
 
   if (activeChats.length === 0) {
     listEl.querySelectorAll('.chat-item').forEach(e => e.remove());
@@ -2944,9 +3182,13 @@ async function loadChats() {
     const time = timeAgo(c.lastMessage.created_at);
     const isPinned = c.room.pinned ? 'true' : 'false';
     const isMuted = c.room.muted ? 'true' : 'false';
+    const hasUnread = c.unreadCount > 0;
+    const unreadBadgeHTML = hasUnread
+      ? `<span class="chat-unread-badge">${c.unreadCount > 99 ? '99+' : c.unreadCount}</span>`
+      : '';
 
     return `
-      <div class="chat-item${c.room.pinned ? ' pinned' : ''}${c.room.muted ? ' muted' : ''}" 
+      <div class="chat-item${c.room.pinned ? ' pinned' : ''}${c.room.muted ? ' muted' : ''}${hasUnread ? ' unread' : ''}" 
            data-user-id="${partner.id}" 
            data-chat-id="${c.room.id}"
            data-partner-name="${escapeHtml(partner.name)}"
@@ -2981,6 +3223,7 @@ async function loadChats() {
           </div>
           <div class="chat-item-preview">${escapeHtml(preview)}</div>
         </div>
+        ${unreadBadgeHTML}
       </div>
     `;
   }).join('');
@@ -3010,12 +3253,14 @@ async function loadChats() {
 
   attachChatListLongPress(listEl);
 
-  updateChatBadge(activeChats.length);
+  // ⚡ Update nav badge with unread count
+  updateChatBadge(totalUnread);
 }
 
 function updateChatBadge(count) {
   const badge = document.getElementById('chatBadge');
   if (!badge) return;
+
   if (count > 0) {
     badge.textContent = count > 9 ? '9+' : count;
     badge.classList.add('show');
@@ -3025,7 +3270,7 @@ function updateChatBadge(count) {
 }
 
 // ============================================
-// PROFILE VIEW (own profile)
+// PROFILE VIEW (own)
 // ============================================
 function renderProfileView() {
   if (!app.profile) return;
@@ -3091,6 +3336,8 @@ function renderProfileView() {
   } else {
     if (interestsSection) interestsSection.style.display = 'none';
   }
+
+  if (typeof updateNavDots === 'function') updateNavDots();
 }
 
 // ============================================
@@ -3102,7 +3349,7 @@ function setupProfileActions() {
   });
 
   document.getElementById('editProfileRow')?.addEventListener('click', () => {
-    showToast('Edit Profile coming soon!', 'info');
+    openEditProfileSheet();
   });
 
   const darkToggle = document.getElementById('profileDarkToggle');
@@ -3141,9 +3388,7 @@ function setupSettingsToggles() {
       notifToggle.classList.toggle('on', app.notificationsEnabled);
       saveUserPreference('notifications', app.notificationsEnabled);
 
-      if (app.notificationsEnabled) {
-        await requestNotificationPermission();
-      }
+      if (app.notificationsEnabled) await requestNotificationPermission();
       showToast(`Notifications ${app.notificationsEnabled ? 'on' : 'off'}`, 'info');
     });
   }
@@ -3178,22 +3423,14 @@ function initSettingsView() {
   if (app._settingsInited) return;
   app._settingsInited = true;
 
-  document.getElementById('safetyRow')?.addEventListener('click', () => {
-    openSheet('safetyCenterSheet');
-  });
-  document.getElementById('safetyCenterClose')?.addEventListener('click', () => {
-    closeSheet('safetyCenterSheet');
-  });
+  document.getElementById('safetyRow')?.addEventListener('click', () => openSheet('safetyCenterSheet'));
+  document.getElementById('safetyCenterClose')?.addEventListener('click', () => closeSheet('safetyCenterSheet'));
   document.getElementById('safetyCenterSheet')?.addEventListener('click', (e) => {
     if (e.target.id === 'safetyCenterSheet') closeSheet('safetyCenterSheet');
   });
 
-  document.getElementById('aboutRow')?.addEventListener('click', () => {
-    openSheet('aboutVibeSheet');
-  });
-  document.getElementById('aboutVibeClose')?.addEventListener('click', () => {
-    closeSheet('aboutVibeSheet');
-  });
+  document.getElementById('aboutRow')?.addEventListener('click', () => openSheet('aboutVibeSheet'));
+  document.getElementById('aboutVibeClose')?.addEventListener('click', () => closeSheet('aboutVibeSheet'));
   document.getElementById('aboutVibeSheet')?.addEventListener('click', (e) => {
     if (e.target.id === 'aboutVibeSheet') closeSheet('aboutVibeSheet');
   });
@@ -3207,12 +3444,8 @@ function initSettingsView() {
     window.location.href = 'mailto:support@vibe-app.com';
   });
 
-  document.getElementById('termsRow')?.addEventListener('click', () => {
-    openSheet('termsSheet');
-  });
-  document.getElementById('termsClose')?.addEventListener('click', () => {
-    closeSheet('termsSheet');
-  });
+  document.getElementById('termsRow')?.addEventListener('click', () => openSheet('termsSheet'));
+  document.getElementById('termsClose')?.addEventListener('click', () => closeSheet('termsSheet'));
   document.getElementById('termsSheet')?.addEventListener('click', (e) => {
     if (e.target.id === 'termsSheet') closeSheet('termsSheet');
   });
@@ -3235,7 +3468,6 @@ async function requestNotificationPermission() {
     showToast('Notifications not supported', 'error');
     return false;
   }
-
   const permission = await Notification.requestPermission();
   return permission === 'granted';
 }
@@ -3537,7 +3769,7 @@ function spawnConfetti(count = 30, color = '#2563EB') {
 }
 
 /* ============================================================
-   NEW FEATURES (v2.2.0)
+   NEW FEATURES (v2.2.2)
    ============================================================ */
 
 /* ------------------------------------------------------------
@@ -3625,7 +3857,7 @@ function removeTypingBubble() {
 }
 
 /* ------------------------------------------------------------
-   MESSAGE CONTEXT MENU
+   MESSAGE MENU
    ------------------------------------------------------------ */
 let __activeMessageEl = null;
 let __activeMessageData = null;
@@ -3782,7 +4014,7 @@ async function unsendMessage(messageId, msgEl) {
 }
 
 /* ------------------------------------------------------------
-   CHAT ATTACH BUTTON
+   CHAT ATTACH
    ------------------------------------------------------------ */
 function setupChatAttachButton() {
   const attachBtn = document.getElementById('chatAttachBtn');
@@ -3813,7 +4045,7 @@ function setupChatAttachButton() {
 }
 
 /* ------------------------------------------------------------
-   IMAGE UPLOAD SHEET (avatar / cover)
+   IMAGE UPLOAD SHEET
    ------------------------------------------------------------ */
 let __uploadSheetTarget = null;
 
@@ -3866,9 +4098,7 @@ function setupImageUploadSheet() {
       const file = e.target.files && e.target.files[0];
       avatarInput.value = '';
       if (!file) return;
-      if (typeof handleImageUpload === 'function') {
-        await handleImageUpload(file, 'avatar');
-      }
+      if (typeof handleImageUpload === 'function') await handleImageUpload(file, 'avatar');
     });
   }
 
@@ -3879,9 +4109,7 @@ function setupImageUploadSheet() {
       const file = e.target.files && e.target.files[0];
       coverInput.value = '';
       if (!file) return;
-      if (typeof handleImageUpload === 'function') {
-        await handleImageUpload(file, 'cover');
-      }
+      if (typeof handleImageUpload === 'function') await handleImageUpload(file, 'cover');
     });
   }
 
@@ -3893,9 +4121,7 @@ function setupImageUploadSheet() {
       camInput.value = '';
       if (!file) return;
       const target = __uploadSheetTarget || 'avatar';
-      if (typeof handleImageUpload === 'function') {
-        await handleImageUpload(file, target);
-      }
+      if (typeof handleImageUpload === 'function') await handleImageUpload(file, target);
     });
   }
 
@@ -3951,13 +4177,129 @@ function setupProfileImageButtons() {
 }
 
 /* ------------------------------------------------------------
+   EDIT PROFILE SHEET
+   ------------------------------------------------------------ */
+function openEditProfileSheet() {
+  const p = app.profile;
+  if (!p) return;
+
+  let sheet = document.getElementById('editProfileSheet');
+  if (!sheet) {
+    sheet = document.createElement('div');
+    sheet.id = 'editProfileSheet';
+    sheet.className = 'edit-profile-overlay';
+    sheet.innerHTML = `
+      <div class="edit-profile-sheet">
+        <div class="edit-profile-header">
+          <h2 class="edit-profile-title">Edit Profile</h2>
+          <button class="edit-profile-close" id="editProfileClose">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="edit-profile-body">
+          <div class="edit-field">
+            <label class="edit-field-label">Name</label>
+            <input type="text" class="edit-field-input" id="editName" maxlength="40">
+          </div>
+          <div class="edit-field">
+            <label class="edit-field-label">Age</label>
+            <input type="number" class="edit-field-input" id="editAge" min="18" max="99">
+          </div>
+          <div class="edit-field">
+            <label class="edit-field-label">Gender</label>
+            <select class="edit-field-input" id="editGender">
+              <option value="">Select</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="edit-field">
+            <label class="edit-field-label">City</label>
+            <input type="text" class="edit-field-input" id="editCity" maxlength="40">
+          </div>
+          <div class="edit-field">
+            <label class="edit-field-label">Bio</label>
+            <textarea class="edit-field-input edit-field-textarea" id="editBio" maxlength="200" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="edit-profile-footer">
+          <button class="edit-save-btn" id="editProfileSave">Save Changes</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(sheet);
+
+    sheet.querySelector('#editProfileClose')?.addEventListener('click', closeEditProfileSheet);
+    sheet.addEventListener('click', (e) => {
+      if (e.target === sheet) closeEditProfileSheet();
+    });
+    sheet.querySelector('#editProfileSave')?.addEventListener('click', saveEditProfile);
+  }
+
+  sheet.querySelector('#editName').value = p.name || '';
+  sheet.querySelector('#editAge').value = p.age || '';
+  sheet.querySelector('#editGender').value = p.gender || '';
+  sheet.querySelector('#editCity').value = p.city || '';
+  sheet.querySelector('#editBio').value = p.bio || '';
+
+  sheet.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditProfileSheet() {
+  const sheet = document.getElementById('editProfileSheet');
+  if (sheet) sheet.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function saveEditProfile() {
+  const sheet = document.getElementById('editProfileSheet');
+  if (!sheet) return;
+
+  const saveBtn = sheet.querySelector('#editProfileSave');
+  const name = sheet.querySelector('#editName').value.trim();
+  const age = parseInt(sheet.querySelector('#editAge').value, 10) || null;
+  const gender = sheet.querySelector('#editGender').value;
+  const city = sheet.querySelector('#editCity').value.trim();
+  const bio = sheet.querySelector('#editBio').value.trim();
+
+  if (!name) { showToast('Name required', 'error'); return; }
+  if (age && (age < 18 || age > 99)) { showToast('Age must be 18-99', 'error'); return; }
+
+  setButtonLoading(saveBtn, true);
+
+  try {
+    const { error } = await sb
+      .from('profiles')
+      .update({ name, age, gender: gender || null, city: city || null, bio: bio || null })
+      .eq('id', app.user.id);
+
+    if (error) throw error;
+
+    app.profile = { ...app.profile, name, age, gender, city, bio };
+    renderProfileView();
+    showToast('Profile updated', 'success');
+    closeEditProfileSheet();
+
+  } catch (err) {
+    console.error('Save profile error:', err);
+    showToast('Failed to save', 'error');
+  } finally {
+    setButtonLoading(saveBtn, false);
+  }
+}
+
+/* ------------------------------------------------------------
    CREATE POST IMAGE
    ------------------------------------------------------------ */
 function setupCreatePostImage() {
   const input = document.getElementById('createPostImageInput');
   const removeBtn = document.getElementById('createPostImageRemove');
   if (!input) return;
-
   if (input.__vibeBound) return;
   input.__vibeBound = true;
 
@@ -4023,7 +4365,112 @@ function clearCreatePostImage() {
 }
 
 /* ------------------------------------------------------------
-   BOOT NEW FEATURES
+   LIKERS SHEET (v2.2.2)
+   ------------------------------------------------------------ */
+async function openLikersSheet(postId) {
+  if (!postId) return;
+
+  let sheet = document.getElementById('likersSheet');
+  if (!sheet) {
+    sheet = document.createElement('div');
+    sheet.id = 'likersSheet';
+    sheet.className = 'sheet-overlay';
+    sheet.innerHTML = `
+      <div class="sheet-modal likers-sheet-modal">
+        <div class="sheet-handle"></div>
+        <div class="likers-header">
+          <h3 class="likers-title" id="likersTitle">Liked by</h3>
+          <button class="likers-close" id="likersClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="likers-list" id="likersList">
+          <div class="likers-loading">
+            <div class="spinner" style="margin: 0 auto;"></div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(sheet);
+
+    sheet.querySelector('#likersClose')?.addEventListener('click', closeLikersSheet);
+    sheet.addEventListener('click', (e) => {
+      if (e.target === sheet) closeLikersSheet();
+    });
+  }
+
+  const listEl = document.getElementById('likersList');
+  const titleEl = document.getElementById('likersTitle');
+
+  if (listEl) {
+    listEl.innerHTML = `<div class="likers-loading"><div class="spinner" style="margin: 0 auto;"></div></div>`;
+  }
+  if (titleEl) titleEl.textContent = 'Liked by';
+
+  sheet.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const likers = await fetchPostLikers(postId, 100);
+
+    if (titleEl) {
+      titleEl.textContent = likers.length === 0
+        ? 'No likes yet'
+        : `Liked by ${likers.length} ${likers.length === 1 ? 'person' : 'people'}`;
+    }
+
+    if (!listEl) return;
+
+    if (likers.length === 0) {
+      listEl.innerHTML = `
+        <div class="likers-empty">
+          <div class="likers-empty-icon">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+          </div>
+          <div class="likers-empty-title">No likes yet</div>
+          <div class="likers-empty-text">Be the first to react!</div>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = likers.map(u => renderLikerItem(u)).join('');
+
+    listEl.querySelectorAll('.liker-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const userId = item.dataset.userId;
+        closeLikersSheet();
+        setTimeout(() => {
+          if (userId === app.user.id) {
+            switchView('profile');
+          } else {
+            openFullProfile(userId);
+          }
+        }, 200);
+      });
+    });
+
+  } catch (err) {
+    console.error('openLikersSheet error:', err);
+    if (listEl) {
+      listEl.innerHTML = `<div class="likers-empty-text">Failed to load likers</div>`;
+    }
+  }
+}
+
+function closeLikersSheet() {
+  const sheet = document.getElementById('likersSheet');
+  if (sheet) sheet.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ------------------------------------------------------------
+   BOOT
    ------------------------------------------------------------ */
 function bootVibeNewFeatures() {
   if (app._newFeaturesBooted) return;
@@ -4038,7 +4485,20 @@ function bootVibeNewFeatures() {
   setupProfilePageButtons();
   unlockAudioOnFirstTap();
 
-  console.log('[Vibe] ✨ New features booted (v2.2.0)');
+  console.log('[Vibe] ✨ New features booted (v2.2.2)');
 }
 
 window.bootVibeNewFeatures = bootVibeNewFeatures;
+
+// ============================================
+// EXPOSE GLOBALS
+// ============================================
+window.openEditProfileSheet = openEditProfileSheet;
+window.closeEditProfileSheet = closeEditProfileSheet;
+window.openFullProfile = openFullProfile;
+window.closeFullProfile = closeFullProfile;
+window.openChatWithUser = openChatWithUser;
+window.switchView = switchView;
+window.openLikersSheet = openLikersSheet;
+window.closeLikersSheet = closeLikersSheet;
+window.refreshNavBadge = refreshNavBadge;
