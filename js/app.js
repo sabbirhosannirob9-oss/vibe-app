@@ -1,7 +1,7 @@
 /* ============================================
-   VIBE — Main App Logic — FINAL v2.1.2
+   VIBE — Main App Logic — FINAL v2.1.3
    ============================================
-   Features:
+   All Features:
    - Feed + Posts + Likes + Comments
    - Matches + Chat + Active Users
    - Profile (Posts/About/Gifts tabs)
@@ -11,9 +11,10 @@
    - Block User + Report User
    - Typing Indicator
    - Read Receipts (✓✓)
-   - Push Notifications
+   - Push Notifications (real)
    - Chat Long-press Context Menu
    - User Profile View
+   - Safety Center + About + Terms
 ============================================ */
 
 // ============================================
@@ -130,7 +131,7 @@ const app = {
       if (toggle) updateProfileToggleState(toggle);
     });
 
-    console.log('✅ App initialized (v2.1.2)');
+    console.log('✅ App initialized (v2.1.3)');
 
   } catch (err) {
     console.error('App init error:', err);
@@ -647,7 +648,7 @@ function closeChatMenu() {
 }
 
 // ============================================
-// ⭐ CHAT CONTEXT MENU (Long-press)
+// CHAT CONTEXT MENU (Long-press)
 // ============================================
 function setupChatContextMenu() {
   if (app._contextMenuInited) return;
@@ -658,7 +659,6 @@ function setupChatContextMenu() {
     if (e.target.id === 'chatContextMenu') closeChatContextMenu();
   });
 
-  // User Profile sheet close
   document.getElementById('userProfileClose')?.addEventListener('click', closeUserProfile);
   document.getElementById('userProfileSheet')?.addEventListener('click', (e) => {
     if (e.target.id === 'userProfileSheet') closeUserProfile();
@@ -668,19 +668,16 @@ function setupChatContextMenu() {
 function attachChatListLongPress(container) {
   const LONG_PRESS_MS = 500;
   let pressTimer = null;
-  let isLongPressing = false;
   let didTrigger = false;
 
   container.querySelectorAll('.chat-item').forEach(item => {
     item.dataset.longPressed = 'false';
 
     const startPress = () => {
-      isLongPressing = false;
       didTrigger = false;
       item.classList.add('pressing');
 
       pressTimer = setTimeout(() => {
-        isLongPressing = true;
         didTrigger = true;
         item.dataset.longPressed = 'true';
         item.classList.remove('pressing');
@@ -710,7 +707,6 @@ function attachChatListLongPress(container) {
     item.addEventListener('mouseup', cancelPress);
     item.addEventListener('mouseleave', cancelPress);
 
-    // Prevent click if long-press triggered
     item.addEventListener('click', (e) => {
       if (didTrigger) {
         e.stopPropagation();
@@ -730,16 +726,8 @@ function showChatContextMenu(chatItem) {
   const isPinned = chatItem.dataset.pinned === 'true';
   const isMuted = chatItem.dataset.muted === 'true';
 
-  app.contextChat = {
-    userId,
-    chatId,
-    name,
-    verified,
-    isPinned,
-    isMuted
-  };
+  app.contextChat = { userId, chatId, name, verified, isPinned, isMuted };
 
-  // Preview
   const avatarEl = document.getElementById('contextChatAvatar');
   const nameEl = document.getElementById('contextChatName');
   const subEl = document.getElementById('contextChatSub');
@@ -850,8 +838,7 @@ function showChatContextMenu(chatItem) {
 
   optionsEl.querySelectorAll('.sheet-option').forEach(btn => {
     btn.addEventListener('click', () => {
-      const action = btn.dataset.action;
-      handleContextAction(action);
+      handleContextAction(btn.dataset.action);
     });
   });
 
@@ -954,7 +941,7 @@ async function deleteChatForMe(chatId) {
 }
 
 // ============================================
-// ⭐ USER PROFILE VIEW
+// USER PROFILE VIEW
 // ============================================
 async function openUserProfile(partner) {
   if (!partner || !partner.id) return;
@@ -975,7 +962,6 @@ async function openUserProfile(partner) {
   `;
 
   try {
-    // Fetch full profile
     const { data: profile } = await sb
       .from('profiles')
       .select('id, name, age, gender, city, interests, bio, is_verified, last_seen, streak_count, total_gifts')
@@ -1071,7 +1057,6 @@ function renderUserProfile(profile) {
     </div>
   `;
 
-  // Attach handlers
   document.getElementById('pvChatBtn')?.addEventListener('click', () => {
     closeUserProfile();
     openChatWithUser(profile.id, profile.name);
@@ -2482,6 +2467,14 @@ function appendMessage(msg) {
     markMessagesAsRead();
     if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate([20, 50, 20]);
     if (app.soundEnabled) playMessageSound();
+
+    // Show notification if not in active chat view
+    const isChatOpen = document.getElementById('chatRoom')?.classList.contains('open');
+    const isPageVisible = !document.hidden;
+
+    if (!isChatOpen || !isPageVisible) {
+      showMessageNotification(msg, senderName);
+    }
   }
 }
 
@@ -2525,7 +2518,43 @@ function playMessageSound() {
 }
 
 // ============================================
-// LOAD CHATS LIST (with long-press)
+// MESSAGE NOTIFICATION
+// ============================================
+async function showMessageNotification(msg, senderName) {
+  if (!app.notificationsEnabled) return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+
+  try {
+    const notification = new Notification(senderName || 'New Message', {
+      body: msg.message.slice(0, 120),
+      icon: 'assets/icons/android-chrome-192x192.png',
+      badge: 'assets/icons/android-chrome-192x192.png',
+      tag: 'vibe-msg-' + msg.id,
+      renotify: true,
+      silent: !app.soundEnabled
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+
+      if (msg.sender_id !== app.currentPartner?.id) {
+        const room = app.chats.find(c => c.partner?.id === msg.sender_id);
+        if (room && room.partner) {
+          openChatRoom(room.partner);
+        } else {
+          openChatWithUser(msg.sender_id);
+        }
+      }
+    };
+  } catch (err) {
+    console.error('Notification error:', err);
+  }
+}
+
+// ============================================
+// LOAD CHATS LIST
 // ============================================
 async function loadChats() {
   const listEl = document.getElementById('chatList');
@@ -2795,17 +2824,52 @@ function initSettingsView() {
   if (app._settingsInited) return;
   app._settingsInited = true;
 
-  document.getElementById('aboutRow')?.addEventListener('click', showAboutModal);
-  document.getElementById('termsRow')?.addEventListener('click', () => showToast('Terms coming soon!', 'info'));
-  document.getElementById('safetyRow')?.addEventListener('click', () => showToast('Safety Center coming soon!', 'info'));
+  // Safety Center
+  document.getElementById('safetyRow')?.addEventListener('click', () => {
+    openSheet('safetyCenterSheet');
+  });
+  document.getElementById('safetyCenterClose')?.addEventListener('click', () => {
+    closeSheet('safetyCenterSheet');
+  });
+  document.getElementById('safetyCenterSheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'safetyCenterSheet') closeSheet('safetyCenterSheet');
+  });
 
+  // About Vibe
+  document.getElementById('aboutRow')?.addEventListener('click', () => {
+    openSheet('aboutVibeSheet');
+  });
+  document.getElementById('aboutVibeClose')?.addEventListener('click', () => {
+    closeSheet('aboutVibeSheet');
+  });
+  document.getElementById('aboutVibeSheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'aboutVibeSheet') closeSheet('aboutVibeSheet');
+  });
+
+  document.getElementById('aboutTermsBtn')?.addEventListener('click', () => {
+    closeSheet('aboutVibeSheet');
+    setTimeout(() => openSheet('termsSheet'), 200);
+  });
+
+  document.getElementById('aboutContactBtn')?.addEventListener('click', () => {
+    window.location.href = 'mailto:support@vibe-app.com';
+  });
+
+  // Terms & Privacy
+  document.getElementById('termsRow')?.addEventListener('click', () => {
+    openSheet('termsSheet');
+  });
+  document.getElementById('termsClose')?.addEventListener('click', () => {
+    closeSheet('termsSheet');
+  });
+  document.getElementById('termsSheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'termsSheet') closeSheet('termsSheet');
+  });
+
+  // Sign Out
   document.getElementById('settingsLogoutRow')?.addEventListener('click', async () => {
     if (confirm('Sign out of Vibe?')) await signOut();
   });
-}
-
-function showAboutModal() {
-  alert('Vibe v2.1.2\n\nMatch your mood. Meet real people.\n\n(c) 2026 Vibe');
 }
 
 // ============================================
@@ -2824,23 +2888,6 @@ async function requestNotificationPermission() {
 
   const permission = await Notification.requestPermission();
   return permission === 'granted';
-}
-
-function showNotification(title, body, icon) {
-  if (!app.notificationsEnabled) return;
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') return;
-
-  try {
-    new Notification(title, {
-      body: body,
-      icon: icon || 'assets/icons/android-chrome-192x192.png',
-      badge: 'assets/icons/android-chrome-192x192.png',
-      tag: 'vibe-notification'
-    });
-  } catch (err) {
-    // silent
-  }
 }
 
 // ============================================
