@@ -829,5 +829,73 @@ html[data-theme="dark"] .post-skeleton-line {
     height: 52px;
     bottom: 88px;
     right: 16px;
-  }
+  }/* ══════════════════════════════════════════════════════════
+   v2.2.0 — Post Image + Avatar Styles
+   ══════════════════════════════════════════════════════════ */
+
+.post-card-avatar-img,
+.post-card-avatar-fallback {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.post-card-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2563EB 0%, #6C5CE7 100%);
+  color: #FFFFFF;
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.comment-avatar-img,
+.comment-avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.comment-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2563EB 0%, #6C5CE7 100%);
+  color: #FFFFFF;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.post-card-image-wrap {
+  margin: 10px -16px -16px;
+  overflow: hidden;
+  background: #F1F5F9;
+  border-top: 1px solid rgba(15, 26, 61, 0.05);
+  border-radius: 0 0 20px 20px;
+}
+
+.post-card-image {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  max-height: 480px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.post-card-image:active {
+  opacity: 0.92;
+}
+
+[data-theme="dark"] .post-card-image-wrap {
+  background: #0B1530;
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
 }
