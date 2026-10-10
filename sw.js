@@ -1,15 +1,17 @@
 /* ============================================
    VIBE — Service Worker
-   Version: 2.2.0
+   Version: 2.2.2
    ============================================
    Offline caching + faster loads
    - Full-screen profile page
    - Post image support
    - Avatar + cover upload
+   - Likers sheet
+   - Smart bottom nav + badge
 ============================================ */
 
-const CACHE_NAME = 'vibe-v2.2.0';
-const RUNTIME_CACHE = 'vibe-runtime-v2.2.0';
+const CACHE_NAME = 'vibe-v2.2.2';
+const RUNTIME_CACHE = 'vibe-runtime-v2.2.2';
 
 // Files to cache on install
 const PRECACHE_URLS = [
@@ -39,7 +41,7 @@ const PRECACHE_URLS = [
   '/js/setup.js',
   '/js/gifts.js',
   '/js/posts.js',
-  '/js/upload.js',        // ← v2.2.0 — MISSING ছিল, এখন যোগ
+  '/js/upload.js',
   '/js/app.js',
   '/js/pwa.js',
 
@@ -56,12 +58,12 @@ const PRECACHE_URLS = [
 // INSTALL
 // ============================================
 self.addEventListener('install', (event) => {
-  console.log('🔧 SW: Installing v2.2.0...');
+  console.log('🔧 SW: Installing v2.2.2...');
 
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('📦 SW: Pre-caching files (v2.2.0)');
+        console.log('📦 SW: Pre-caching files (v2.2.2)');
         return Promise.allSettled(
           PRECACHE_URLS.map(url =>
             cache.add(url).catch(err => {
@@ -78,7 +80,7 @@ self.addEventListener('install', (event) => {
 // ACTIVATE
 // ============================================
 self.addEventListener('activate', (event) => {
-  console.log('✅ SW: Activating v2.2.0...');
+  console.log('✅ SW: Activating v2.2.2...');
 
   event.waitUntil(
     caches.keys()
@@ -210,4 +212,4 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-console.log('[Vibe] sw.js loaded v2.2.0');
+console.log('[Vibe] sw.js loaded v2.2.2');
