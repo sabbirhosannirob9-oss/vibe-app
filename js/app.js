@@ -2497,27 +2497,60 @@ function updateMessageReadStatus(msg) {
   `;
 }
 
+// ============================================
+// MESSAGE SOUND — Custom MP3
+// ============================================
+let messageAudio = null;
+
 function playMessageSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    if (!app.soundEnabled) return;
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    // Create audio instance once
+    if (!messageAudio) {
+      messageAudio = new Audio('assets/icons/message.mp3');
+      messageAudio.preload = 'auto';
+      messageAudio.volume = 0.7;
+    }
 
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-
-    gain.gain.setValueAtTime(0.1, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.2);
+    // Reset and play
+    messageAudio.currentTime = 0;
+    messageAudio.play().catch(err => {
+      console.log('🔇 Audio blocked:', err.message);
+    });
   } catch (err) {
-    // silent fail
+    console.error('Sound error:', err);
   }
 }
+
+// ============================================
+// PRELOAD AUDIO ON FIRST USER INTERACTION
+// ============================================
+function unlockAudio() {
+  if (messageAudio) return;
+
+  messageAudio = new Audio('assets/icons/message.mp3');
+  messageAudio.preload = 'auto';
+  messageAudio.volume = 0.7;
+
+  // Silent play to unlock
+  messageAudio.volume = 0;
+  messageAudio.play().then(() => {
+    messageAudio.pause();
+    messageAudio.currentTime = 0;
+    messageAudio.volume = 0.7;
+    console.log('🔊 Audio unlocked');
+  }).catch(() => {
+    messageAudio = null;
+  });
+
+  document.removeEventListener('click', unlockAudio);
+  document.removeEventListener('touchstart', unlockAudio);
+}
+
+// Attach unlock listeners
+document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('touchstart', unlockAudio, { once: true });
 
 // ============================================
 // MESSAGE NOTIFICATION
