@@ -1,12 +1,15 @@
 /* ============================================
-   VIBE — Main App Styles (SPA) — FINAL v2.1.0
+   VIBE — Main App Styles (SPA) — FINAL v2.1.3
    ============================================
-   All features styles included:
+   All features:
    - Layout, Navigation, Views
    - Chat + Swipe Reply + Read Receipts + Typing
    - Block/Report sheets
    - Active Users, Profile Tabs
-   - Mood Modal, Gifts
+   - Mood Modal, Gifts, Feed
+   - Chat Context Menu (Long-press)
+   - User Profile Modal
+   - Safety Center, About, Terms Pages
 ============================================ */
 
 /* ============================================
@@ -741,7 +744,6 @@ html[data-theme="dark"] .chat-room-header {
   margin-top: 1px;
 }
 
-/* ⭐ Chat Header Action (⋮ menu button) */
 .chat-header-action {
   width: 40px;
   height: 40px;
@@ -802,7 +804,6 @@ html[data-theme="dark"] .chat-room-header {
   30% { transform: translateY(-4px); opacity: 1; }
 }
 
-/* In-chat typing bubble */
 .typing-bubble {
   display: flex;
   align-items: center;
@@ -839,7 +840,6 @@ html[data-theme="dark"] .chat-room-header {
 
 .chat-messages::-webkit-scrollbar { width: 0; }
 
-/* Message wrapper (for swipe reply) */
 .msg-wrapper {
   position: relative;
   display: flex;
@@ -849,7 +849,6 @@ html[data-theme="dark"] .chat-room-header {
 .msg-wrapper.mine { justify-content: flex-end; }
 .msg-wrapper.theirs { justify-content: flex-start; }
 
-/* Swipe reply icon */
 .msg-swipe-reply-icon {
   position: absolute;
   left: 16px;
@@ -886,7 +885,6 @@ html[data-theme="dark"] .chat-room-header {
   box-shadow: 0 0 0 4px rgba(37,99,235,0.2);
 }
 
-/* Message */
 .msg {
   display: flex;
   gap: 8px;
@@ -939,7 +937,6 @@ html[data-theme="dark"] .chat-room-header {
   border: 1px solid var(--border-light);
 }
 
-/* Message meta (time + read status) */
 .msg-meta {
   display: flex;
   align-items: center;
@@ -955,7 +952,6 @@ html[data-theme="dark"] .chat-room-header {
   justify-content: flex-start;
 }
 
-/* Read receipt (✓✓) */
 .msg-status {
   display: inline-flex;
   align-items: center;
@@ -971,13 +967,11 @@ html[data-theme="dark"] .chat-room-header {
   color: #3B82F6;
 }
 
-/* Wrapper prevents text selection during swipe */
 .msg-wrapper.swiping {
   user-select: none;
   -webkit-user-select: none;
 }
 
-/* Message date divider */
 .msg-date {
   text-align: center;
   font-size: 11.5px;
@@ -987,7 +981,6 @@ html[data-theme="dark"] .chat-room-header {
   letter-spacing: 0.02em;
 }
 
-/* Chat empty state */
 .chat-empty {
   display: flex;
   flex-direction: column;
@@ -1718,48 +1711,7 @@ html[data-theme="dark"] .chat-room-header {
 }
 
 /* ============================================
-   24. DARK MODE OVERRIDES
-============================================ */
-html[data-theme="dark"] .msg-swipe-reply-icon {
-  background: var(--bg-secondary);
-  border-color: var(--primary);
-}
-
-html[data-theme="dark"] .reply-preview-bar {
-  background: var(--bg-secondary);
-}
-
-html[data-theme="dark"] .chat-room-header {
-  background: rgba(15,26,61,0.9);
-}
-
-html[data-theme="dark"] .typing-bubble {
-  background: var(--bg-tertiary);
-  border-color: var(--border);
-}
-
-html[data-theme="dark"] .sheet-option-icon {
-  background: var(--bg-tertiary);
-}
-
-html[data-theme="dark"] .skeleton,
-html[data-theme="dark"] .skeleton-card,
-html[data-theme="dark"] .skeleton-line {
-  background: linear-gradient(90deg, #1E2A52 25%, #2A3559 50%, #1E2A52 75%);
-  background-size: 200% 100%;
-}
-
-/* ============================================
-   25. RESPONSIVE
-============================================ */
-@media (max-width: 380px) {
-  .nav-item { font-size: 9.5px; }
-  .nav-item svg { width: 20px; height: 20px; }
-  .chat-header-action { width: 36px; height: 36px; }
-  .msg-bubble { font-size: 14px; padding: 9px 12px; }
-}
-/* ============================================
-   CHAT CONTEXT MENU (Long-press)
+   24. CHAT CONTEXT MENU (Long-press)
 ============================================ */
 .context-menu-modal {
   padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
@@ -1807,7 +1759,6 @@ html[data-theme="dark"] .skeleton-line {
   text-overflow: ellipsis;
 }
 
-/* Menu options - compact */
 .context-menu-modal .sheet-option {
   padding: 12px 12px;
   border-radius: 12px;
@@ -1828,8 +1779,13 @@ html[data-theme="dark"] .skeleton-line {
   font-size: 14.5px;
 }
 
+.context-menu-modal .sheet-option.danger .sheet-option-icon {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
 /* ============================================
-   USER PROFILE MODAL
+   25. USER PROFILE MODAL
 ============================================ */
 .profile-view-modal {
   position: relative;
@@ -1870,7 +1826,6 @@ html[data-theme="dark"] .skeleton-line {
   padding-top: 12px;
 }
 
-/* Profile View Hero */
 .pv-hero {
   display: flex;
   flex-direction: column;
@@ -1951,7 +1906,6 @@ html[data-theme="dark"] .skeleton-line {
   padding: 0 8px;
 }
 
-/* Profile sections */
 .pv-section {
   width: 100%;
   background: var(--bg-secondary);
@@ -1976,7 +1930,6 @@ html[data-theme="dark"] .skeleton-line {
   justify-content: center;
 }
 
-/* Profile stats */
 .pv-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2019,7 +1972,6 @@ html[data-theme="dark"] .skeleton-line {
   font-weight: 500;
 }
 
-/* Action buttons */
 .pv-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2078,13 +2030,8 @@ html[data-theme="dark"] .skeleton-line {
   color: var(--text-primary);
 }
 
-/* Full-width button (when only one action) */
-.pv-action-full {
-  grid-column: 1 / -1;
-}
-
 /* ============================================
-   LONG-PRESS VISUAL FEEDBACK
+   26. LONG-PRESS VISUAL FEEDBACK
 ============================================ */
 .chat-item.pressing {
   transform: scale(0.97);
@@ -2093,16 +2040,172 @@ html[data-theme="dark"] .skeleton-line {
 }
 
 /* ============================================
-   CONTEXT MENU DANGER ITEMS
+   27. PAGE MODALS (Safety, About, Terms)
 ============================================ */
-.context-menu-modal .sheet-option.danger .sheet-option-icon {
-  background: var(--danger-light);
-  color: var(--danger);
+.page-modal {
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.page-subtitle {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border-radius: 14px;
+  align-items: flex-start;
+}
+
+.info-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.info-card-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.info-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-card-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+
+.info-card-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.about-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.about-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  text-align: left;
+  width: 100%;
+}
+
+.about-link:active {
+  background: var(--bg-tertiary);
+  transform: scale(0.98);
+}
+
+.about-link svg:first-child {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+.about-link svg:last-child {
+  color: var(--text-tertiary);
+}
+
+.legal-section {
+  padding: 14px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+}
+
+.legal-heading {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.legal-text {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
 }
 
 /* ============================================
-   DARK MODE OVERRIDES
+   28. DARK MODE OVERRIDES
 ============================================ */
+html[data-theme="dark"] .msg-swipe-reply-icon {
+  background: var(--bg-secondary);
+  border-color: var(--primary);
+}
+
+html[data-theme="dark"] .reply-preview-bar {
+  background: var(--bg-secondary);
+}
+
+html[data-theme="dark"] .typing-bubble {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .sheet-option-icon {
+  background: var(--bg-tertiary);
+}
+
+html[data-theme="dark"] .skeleton,
+html[data-theme="dark"] .skeleton-card,
+html[data-theme="dark"] .skeleton-line {
+  background: linear-gradient(90deg, #1E2A52 25%, #2A3559 50%, #1E2A52 75%);
+  background-size: 200% 100%;
+}
+
 html[data-theme="dark"] .profile-view-close {
   background: var(--bg-tertiary);
 }
@@ -2127,10 +2230,25 @@ html[data-theme="dark"] .pv-action-block.unblock {
   background: var(--bg-tertiary);
 }
 
+html[data-theme="dark"] .info-card,
+html[data-theme="dark"] .about-link,
+html[data-theme="dark"] .legal-section {
+  background: var(--bg-tertiary);
+}
+
+html[data-theme="dark"] .about-link:active {
+  background: #2A3559;
+}
+
 /* ============================================
-   RESPONSIVE
+   29. RESPONSIVE
 ============================================ */
 @media (max-width: 380px) {
+  .nav-item { font-size: 9.5px; }
+  .nav-item svg { width: 20px; height: 20px; }
+  .chat-header-action { width: 36px; height: 36px; }
+  .msg-bubble { font-size: 14px; padding: 9px 12px; }
+
   .pv-avatar {
     width: 80px;
     height: 80px;
@@ -2146,5 +2264,27 @@ html[data-theme="dark"] .pv-action-block.unblock {
   .pv-action-btn svg {
     width: 16px;
     height: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+  .info-card {
+    padding: 12px;
+  }
+  .info-card-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .info-card-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .info-card-title {
+    font-size: 14px;
+  }
+  .info-card-text,
+  .legal-text {
+    font-size: 12.5px;
   }
 }
