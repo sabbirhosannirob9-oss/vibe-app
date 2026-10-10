@@ -1,5 +1,5 @@
 /* ============================================
-   VIBE — Main App Logic — FINAL v2.1.0 (Fixed)
+   VIBE — Main App Logic — FINAL v2.1.2
    ============================================
    Features:
    - Feed + Posts + Likes + Comments
@@ -12,6 +12,8 @@
    - Typing Indicator
    - Read Receipts (✓✓)
    - Push Notifications
+   - Chat Long-press Context Menu
+   - User Profile View
 ============================================ */
 
 // ============================================
@@ -44,6 +46,8 @@ const app = {
   giftStats: null,
   reportTarget: null,
   reportReason: null,
+  contextChat: null,
+  viewingProfile: null,
   soundEnabled: true,
   vibrationEnabled: true,
   notificationsEnabled: true,
@@ -52,7 +56,8 @@ const app = {
   _profileTabsInited: false,
   _feedRendering: false,
   _backInited: false,
-  _chatMenuInited: false
+  _chatMenuInited: false,
+  _contextMenuInited: false
 };
 
 // ============================================
@@ -74,7 +79,6 @@ const app = {
       return;
     }
 
-    // Load user preferences
     loadUserPreferences();
 
     await updateLastSeen();
@@ -91,6 +95,7 @@ const app = {
     setupPostSystem();
     setupBackButton();
     setupChatMenu();
+    setupChatContextMenu();
     setupSettingsToggles();
     setupBlockedUsers();
     setupReportSheet();
@@ -125,7 +130,7 @@ const app = {
       if (toggle) updateProfileToggleState(toggle);
     });
 
-    console.log('✅ App initialized (v2.1.0)');
+    console.log('✅ App initialized (v2.1.2)');
 
   } catch (err) {
     console.error('App init error:', err);
@@ -162,7 +167,7 @@ function verifiedBadgeHTML(isVerified, size = 'default') {
 }
 
 // ============================================
-// USER PREFERENCES (localStorage)
+// USER PREFERENCES
 // ============================================
 function loadUserPreferences() {
   app.soundEnabled = localStorage.getItem('vibe_sound') !== 'false';
@@ -175,7 +180,7 @@ function saveUserPreference(key, value) {
 }
 
 // ============================================
-// BACK BUTTON HANDLING (Android)
+// BACK BUTTON HANDLING
 // ============================================
 function setupBackButton() {
   if (app._backInited) return;
@@ -184,7 +189,6 @@ function setupBackButton() {
   history.pushState({ vibe: true }, '', location.href);
 
   window.addEventListener('popstate', (e) => {
-    // 1. Chat room open → close
     const chatRoom = document.getElementById('chatRoom');
     if (chatRoom && chatRoom.classList.contains('open')) {
       e.preventDefault();
@@ -193,7 +197,6 @@ function setupBackButton() {
       return;
     }
 
-    // 2. Any modal/sheet open → close
     const openModal = document.querySelector(
       '.modal-overlay.open, .gift-popup-overlay.open, .create-post-overlay.open, .comment-sheet-overlay.open, .sheet-overlay.open'
     );
@@ -205,7 +208,6 @@ function setupBackButton() {
       return;
     }
 
-    // 3. Not on feed → go to feed
     if (app.currentView !== 'feed') {
       e.preventDefault();
       history.pushState(null, '', location.href);
@@ -351,22 +353,18 @@ async function blockUser(userId) {
   try {
     const { error } = await sb
       .from('blocked_users')
-      .insert({
-        blocker_id: app.user.id,
-        blocked_id: userId
-      });
+      .insert({ blocker_id: app.user.id, blocked_id: userId });
 
     if (error) throw error;
 
     app.blockedUsers.push(userId);
     showToast('User blocked', 'success');
 
-    // Remove from UI
     closeChatRoom();
+    closeUserProfile();
     await loadChats();
     await loadMatches();
     await loadActiveUsers();
-
     closeChatMenu();
   } catch (err) {
     console.error('Block error:', err);
@@ -388,6 +386,8 @@ async function unblockUser(userId) {
     showToast('User unblocked', 'success');
 
     await loadBlockedUsersList();
+    closeUserProfile();
+    await loadChats();
   } catch (err) {
     console.error('Unblock error:', err);
     showToast('Failed to unblock', 'error');
@@ -546,7 +546,7 @@ function closeSheet(id) {
 }
 
 // ============================================
-// CHAT MENU (Block/Report)
+// CHAT MENU (⋮ in chat room)
 // ============================================
 function setupChatMenu() {
   if (app._chatMenuInited) return;
@@ -634,7 +634,7 @@ function openChatMenu() {
       } else if (action === 'report') {
         openReportSheet(partner.id);
       } else if (action === 'view-profile') {
-        showToast('Profile view coming soon', 'info');
+        openUserProfile(partner);
       }
     });
   });
@@ -644,6 +644,451 @@ function openChatMenu() {
 
 function closeChatMenu() {
   closeSheet('chatMenuSheet');
+}
+
+// ============================================
+// ⭐ CHAT CONTEXT MENU (Long-press)
+// ============================================
+function setupChatContextMenu() {
+  if (app._contextMenuInited) return;
+  app._contextMenuInited = true;
+
+  document.getElementById('chatContextCancel')?.addEventListener('click', closeChatContextMenu);
+  document.getElementById('chatContextMenu')?.addEventListener('click', (e) => {
+    if (e.target.id === 'chatContextMenu') closeChatContextMenu();
+  });
+
+  // User Profile sheet close
+  document.getElementById('userProfileClose')?.addEventListener('click', closeUserProfile);
+  document.getElementById('userProfileSheet')?.addEventListener('click', (e) => {
+    if (e.target.id === 'userProfileSheet') closeUserProfile();
+  });
+}
+
+function attachChatListLongPress(container) {
+  const LONG_PRESS_MS = 500;
+  let pressTimer = null;
+  let isLongPressing = false;
+  let didTrigger = false;
+
+  container.querySelectorAll('.chat-item').forEach(item => {
+    item.dataset.longPressed = 'false';
+
+    const startPress = () => {
+      isLongPressing = false;
+      didTrigger = false;
+      item.classList.add('pressing');
+
+      pressTimer = setTimeout(() => {
+        isLongPressing = true;
+        didTrigger = true;
+        item.dataset.longPressed = 'true';
+        item.classList.remove('pressing');
+
+        if (app.vibrationEnabled && navigator.vibrate) {
+          navigator.vibrate([15, 40, 15]);
+        }
+
+        showChatContextMenu(item);
+      }, LONG_PRESS_MS);
+    };
+
+    const cancelPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+      item.classList.remove('pressing');
+    };
+
+    item.addEventListener('touchstart', startPress, { passive: true });
+    item.addEventListener('touchend', cancelPress);
+    item.addEventListener('touchmove', cancelPress);
+    item.addEventListener('touchcancel', cancelPress);
+
+    item.addEventListener('mousedown', startPress);
+    item.addEventListener('mouseup', cancelPress);
+    item.addEventListener('mouseleave', cancelPress);
+
+    // Prevent click if long-press triggered
+    item.addEventListener('click', (e) => {
+      if (didTrigger) {
+        e.stopPropagation();
+        e.preventDefault();
+        didTrigger = false;
+      }
+    }, true);
+  });
+}
+
+function showChatContextMenu(chatItem) {
+  const userId = chatItem.dataset.userId;
+  const chatId = chatItem.dataset.chatId;
+  const name = chatItem.dataset.partnerName;
+  const verified = chatItem.dataset.partnerVerified === 'true';
+  const lastMessage = chatItem.dataset.lastMessage;
+  const isPinned = chatItem.dataset.pinned === 'true';
+  const isMuted = chatItem.dataset.muted === 'true';
+
+  app.contextChat = {
+    userId,
+    chatId,
+    name,
+    verified,
+    isPinned,
+    isMuted
+  };
+
+  // Preview
+  const avatarEl = document.getElementById('contextChatAvatar');
+  const nameEl = document.getElementById('contextChatName');
+  const subEl = document.getElementById('contextChatSub');
+
+  if (avatarEl) avatarEl.textContent = (name || 'U').charAt(0).toUpperCase();
+  if (nameEl) nameEl.innerHTML = escapeHtml(name) + verifiedBadgeHTML(verified, 'sm');
+  if (subEl) subEl.textContent = lastMessage || 'Say hi to start';
+
+  const optionsEl = document.getElementById('chatContextOptions');
+  if (!optionsEl) return;
+
+  optionsEl.innerHTML = `
+    <button class="sheet-option" data-action="message">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">Message</div>
+      </div>
+    </button>
+
+    <button class="sheet-option" data-action="view-profile">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">View Profile</div>
+      </div>
+    </button>
+
+    <button class="sheet-option" data-action="mute">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          ${isMuted ? `
+            <path d="M3 9v6h4l5 5V4L7 9H3z"></path>
+            <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"></path>
+            <path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path>
+          ` : `
+            <path d="M3 9v6h4l5 5V4L7 9H3z"></path>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          `}
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">${isMuted ? 'Unmute Chat' : 'Mute Chat'}</div>
+        <div class="sheet-option-description">${isMuted ? 'Turn on notifications' : 'Turn off notifications'}</div>
+      </div>
+    </button>
+
+    <button class="sheet-option" data-action="pin">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="17" x2="12" y2="22"></line>
+          <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"></path>
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">${isPinned ? 'Unpin Chat' : 'Pin Chat'}</div>
+        <div class="sheet-option-description">${isPinned ? 'Remove from top' : 'Pin to top'}</div>
+      </div>
+    </button>
+
+    <button class="sheet-option danger" data-action="delete">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">Delete Chat</div>
+        <div class="sheet-option-description">Remove from your list</div>
+      </div>
+    </button>
+
+    <button class="sheet-option danger" data-action="block">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">Block User</div>
+        <div class="sheet-option-description">You won't see their messages</div>
+      </div>
+    </button>
+
+    <button class="sheet-option danger" data-action="report">
+      <div class="sheet-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+          <line x1="4" y1="22" x2="4" y2="15"></line>
+        </svg>
+      </div>
+      <div class="sheet-option-content">
+        <div class="sheet-option-label">Report User</div>
+        <div class="sheet-option-description">Help us keep Vibe safe</div>
+      </div>
+    </button>
+  `;
+
+  optionsEl.querySelectorAll('.sheet-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      handleContextAction(action);
+    });
+  });
+
+  openSheet('chatContextMenu');
+}
+
+function closeChatContextMenu() {
+  closeSheet('chatContextMenu');
+  app.contextChat = null;
+}
+
+async function handleContextAction(action) {
+  const ctx = app.contextChat;
+  if (!ctx) return;
+
+  closeChatContextMenu();
+
+  if (action === 'message') {
+    openChatWithUser(ctx.userId, ctx.name);
+  } else if (action === 'view-profile') {
+    const partner = app.matches.find(m => m.id === ctx.userId) || {
+      id: ctx.userId,
+      name: ctx.name,
+      is_verified: ctx.verified
+    };
+    openUserProfile(partner);
+  } else if (action === 'mute') {
+    await toggleMuteChat(ctx.chatId, !ctx.isMuted);
+  } else if (action === 'pin') {
+    await togglePinChat(ctx.chatId, !ctx.isPinned);
+  } else if (action === 'delete') {
+    await deleteChatForMe(ctx.chatId);
+  } else if (action === 'block') {
+    if (confirm(`Block ${ctx.name}?`)) blockUser(ctx.userId);
+  } else if (action === 'report') {
+    openReportSheet(ctx.userId);
+  }
+}
+
+async function toggleMuteChat(chatId, mute) {
+  try {
+    const { error } = await sb
+      .from('chat_rooms')
+      .update({ muted: mute })
+      .eq('id', parseInt(chatId, 10));
+
+    if (error) throw error;
+
+    showToast(mute ? 'Chat muted' : 'Chat unmuted', 'success');
+    await loadChats();
+  } catch (err) {
+    console.error('Mute error:', err);
+    showToast('Failed to update', 'error');
+  }
+}
+
+async function togglePinChat(chatId, pin) {
+  try {
+    const { error } = await sb
+      .from('chat_rooms')
+      .update({ pinned: pin })
+      .eq('id', parseInt(chatId, 10));
+
+    if (error) throw error;
+
+    showToast(pin ? 'Chat pinned' : 'Chat unpinned', 'success');
+    await loadChats();
+  } catch (err) {
+    console.error('Pin error:', err);
+    showToast('Failed to update', 'error');
+  }
+}
+
+async function deleteChatForMe(chatId) {
+  try {
+    const { data: room } = await sb
+      .from('chat_rooms')
+      .select('deleted_for')
+      .eq('id', parseInt(chatId, 10))
+      .single();
+
+    const currentDeleted = room?.deleted_for || [];
+    if (currentDeleted.includes(app.user.id)) return;
+
+    const newDeleted = [...currentDeleted, app.user.id];
+
+    const { error } = await sb
+      .from('chat_rooms')
+      .update({ deleted_for: newDeleted })
+      .eq('id', parseInt(chatId, 10));
+
+    if (error) throw error;
+
+    showToast('Chat deleted', 'success');
+    await loadChats();
+  } catch (err) {
+    console.error('Delete chat error:', err);
+    showToast('Failed to delete', 'error');
+  }
+}
+
+// ============================================
+// ⭐ USER PROFILE VIEW
+// ============================================
+async function openUserProfile(partner) {
+  if (!partner || !partner.id) return;
+
+  app.viewingProfile = partner;
+
+  const overlay = document.getElementById('userProfileSheet');
+  const contentEl = document.getElementById('userProfileContent');
+  if (!overlay || !contentEl) return;
+
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  contentEl.innerHTML = `
+    <div style="text-align: center; padding: 40px 20px;">
+      <div class="spinner" style="margin: 0 auto;"></div>
+    </div>
+  `;
+
+  try {
+    // Fetch full profile
+    const { data: profile } = await sb
+      .from('profiles')
+      .select('id, name, age, gender, city, interests, bio, is_verified, last_seen, streak_count, total_gifts')
+      .eq('id', partner.id)
+      .maybeSingle();
+
+    if (!profile) {
+      contentEl.innerHTML = `<div class="app-empty-text">Profile not found</div>`;
+      return;
+    }
+
+    renderUserProfile(profile);
+  } catch (err) {
+    console.error('Load profile error:', err);
+    contentEl.innerHTML = `<div class="app-empty-text">Failed to load profile</div>`;
+  }
+}
+
+function renderUserProfile(profile) {
+  const contentEl = document.getElementById('userProfileContent');
+  if (!contentEl) return;
+
+  const initial = (profile.name || 'U').charAt(0).toUpperCase();
+  const status = getActiveStatus(profile.last_seen);
+  const blocked = isBlocked(profile.id);
+
+  const metaParts = [];
+  if (profile.age) metaParts.push(`<span class="pv-meta-item">${getIcon('meta_age')}<span>${profile.age}</span></span>`);
+  if (profile.gender) {
+    const iconKey = profile.gender === 'male' ? 'meta_male' : profile.gender === 'female' ? 'meta_female' : 'meta_other';
+    const label = profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1);
+    metaParts.push(`<span class="pv-meta-item">${getIcon(iconKey)}<span>${label}</span></span>`);
+  }
+  if (profile.city) metaParts.push(`<span class="pv-meta-item">${getIcon('meta_city')}<span>${escapeHtml(profile.city)}</span></span>`);
+
+  const interestsHTML = (profile.interests && profile.interests.length > 0)
+    ? `
+      <div class="pv-section">
+        <div class="pv-section-title">Interests</div>
+        <div class="pv-interests">
+          ${profile.interests.map(i => `<span class="chip">${escapeHtml(i)}</span>`).join('')}
+        </div>
+      </div>
+    `
+    : '';
+
+  const bioHTML = profile.bio
+    ? `<p class="pv-bio">${escapeHtml(profile.bio)}</p>`
+    : '';
+
+  contentEl.innerHTML = `
+    <div class="pv-hero">
+      <div class="pv-avatar">
+        ${initial}
+        <span class="pv-avatar-status" style="background: ${status.color === 'green' ? '#10B981' : status.color === 'yellow' ? '#F59E0B' : '#9CA3AF'};"></span>
+      </div>
+      <div class="pv-name">
+        ${escapeHtml(profile.name)}${verifiedBadgeHTML(profile.is_verified, 'lg')}
+      </div>
+      <div class="pv-meta">${metaParts.join('')}</div>
+      ${bioHTML}
+    </div>
+
+    ${interestsHTML}
+
+    <div class="pv-stats">
+      <div class="pv-stat">
+        <div class="pv-stat-icon">🔥</div>
+        <div class="pv-stat-value">${profile.streak_count || 0}</div>
+        <div class="pv-stat-label">Day Streak</div>
+      </div>
+      <div class="pv-stat">
+        <div class="pv-stat-icon">⭐</div>
+        <div class="pv-stat-value">${profile.total_gifts || 0}</div>
+        <div class="pv-stat-label">Gifts</div>
+      </div>
+    </div>
+
+    <div class="pv-actions">
+      <button class="pv-action-btn pv-action-chat" id="pvChatBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        Message
+      </button>
+      <button class="pv-action-btn pv-action-block ${blocked ? 'unblock' : ''}" id="pvBlockBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          ${blocked ? `<polyline points="8 12 11 15 16 9"></polyline>` : `<line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>`}
+        </svg>
+        ${blocked ? 'Unblock' : 'Block'}
+      </button>
+    </div>
+  `;
+
+  // Attach handlers
+  document.getElementById('pvChatBtn')?.addEventListener('click', () => {
+    closeUserProfile();
+    openChatWithUser(profile.id, profile.name);
+  });
+
+  document.getElementById('pvBlockBtn')?.addEventListener('click', () => {
+    if (blocked) {
+      unblockUser(profile.id);
+    } else {
+      if (confirm(`Block ${profile.name}?`)) blockUser(profile.id);
+    }
+  });
+}
+
+function closeUserProfile() {
+  closeSheet('userProfileSheet');
+  app.viewingProfile = null;
 }
 
 // ============================================
@@ -1480,7 +1925,6 @@ function setupChatRoom() {
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 120) + 'px';
 
-      // Send typing status
       sendTypingStatus();
     });
 
@@ -1520,7 +1964,6 @@ async function openChatRoom(partner) {
   subscribeToMessages();
   subscribeToTyping();
 
-  // Mark messages as read
   await markMessagesAsRead();
 
   setTimeout(() => document.getElementById('chatInput')?.focus(), 350);
@@ -2031,16 +2474,12 @@ function appendMessage(msg) {
 
   el.appendChild(div);
 
-  // Attach swipe to all messages (re-attaches all)
   attachMessageSwipe(el);
 
   scrollToBottom();
 
-  // If received from partner and chat open → mark as read
   if (!mine) {
     markMessagesAsRead();
-
-    // Play sound / vibrate
     if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate([20, 50, 20]);
     if (app.soundEnabled) playMessageSound();
   }
@@ -2081,12 +2520,12 @@ function playMessageSound() {
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.2);
   } catch (err) {
-    // Silent fail
+    // silent fail
   }
 }
 
 // ============================================
-// LOAD CHATS LIST
+// LOAD CHATS LIST (with long-press)
 // ============================================
 async function loadChats() {
   const listEl = document.getElementById('chatList');
@@ -2136,7 +2575,15 @@ async function loadChats() {
 
   const activeChats = chatData
     .filter(c => c.lastMessage && c.partner && !isBlocked(c.partner.id))
-    .sort((a, b) => new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at));
+    .filter(c => {
+      const deleted = c.room.deleted_for || [];
+      return !deleted.includes(app.user.id);
+    })
+    .sort((a, b) => {
+      if (a.room.pinned && !b.room.pinned) return -1;
+      if (!a.room.pinned && b.room.pinned) return 1;
+      return new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at);
+    });
 
   app.chats = activeChats;
 
@@ -2159,7 +2606,14 @@ async function loadChats() {
     const time = timeAgo(c.lastMessage.created_at);
 
     return `
-      <div class="chat-item" data-user-id="${partner.id}">
+      <div class="chat-item" 
+           data-user-id="${partner.id}" 
+           data-chat-id="${c.room.id}"
+           data-partner-name="${escapeHtml(partner.name)}"
+           data-partner-verified="${partner.is_verified ? 'true' : 'false'}"
+           data-last-message="${escapeHtml(preview)}"
+           data-pinned="${c.room.pinned ? 'true' : 'false'}"
+           data-muted="${c.room.muted ? 'true' : 'false'}">
         <div class="avatar-wrapper">
           <div class="avatar">${initial}</div>
           <span class="status-dot ${status.color}"></span>
@@ -2179,11 +2633,16 @@ async function loadChats() {
   listEl.insertAdjacentHTML('afterbegin', html);
 
   listEl.querySelectorAll('.chat-item').forEach(item => {
-    item.addEventListener('click', async () => {
-      const userId = item.dataset.userId;
-      const partnerProfile = profileMap[userId];
+    const userId = item.dataset.userId;
+    const partnerProfile = profileMap[userId];
+
+    item.addEventListener('click', () => {
+      if (item.dataset.longPressed === 'true') {
+        item.dataset.longPressed = 'false';
+        return;
+      }
       if (partnerProfile) {
-        await openChatRoom({
+        openChatRoom({
           id: userId,
           name: partnerProfile.name,
           last_seen: partnerProfile.last_seen,
@@ -2192,6 +2651,8 @@ async function loadChats() {
       }
     });
   });
+
+  attachChatListLongPress(listEl);
 
   updateChatBadge(activeChats.length);
 }
@@ -2344,7 +2805,7 @@ function initSettingsView() {
 }
 
 function showAboutModal() {
-  alert('Vibe v2.1.0\n\nMatch your mood. Meet real people.\n\n(c) 2026 Vibe');
+  alert('Vibe v2.1.2\n\nMatch your mood. Meet real people.\n\n(c) 2026 Vibe');
 }
 
 // ============================================
@@ -2378,7 +2839,7 @@ function showNotification(title, body, icon) {
       tag: 'vibe-notification'
     });
   } catch (err) {
-    // some browsers require service worker for notifications
+    // silent
   }
 }
 
