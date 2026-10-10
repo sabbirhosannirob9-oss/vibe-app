@@ -1,20 +1,7 @@
 /* ============================================
-   VIBE — Main App Logic — FINAL v2.1.3
+   VIBE — Main App Logic — FINAL v2.1.4
    ============================================
-   All Features:
-   - Feed + Posts + Likes + Comments
-   - Matches + Chat + Active Users
-   - Profile (Posts/About/Gifts tabs)
-   - Daily Gifts + Streak + Verified
-   - Swipe to Reply
-   - Back Button handling
-   - Block User + Report User
-   - Typing Indicator
-   - Read Receipts (✓✓)
-   - Push Notifications (real)
-   - Chat Long-press Context Menu
-   - User Profile View
-   - Safety Center + About + Terms
+   All Features + Mute/Unmute UI Fix
 ============================================ */
 
 // ============================================
@@ -131,7 +118,7 @@ const app = {
       if (toggle) updateProfileToggleState(toggle);
     });
 
-    console.log('✅ App initialized (v2.1.3)');
+    console.log('✅ App initialized (v2.1.4)');
 
   } catch (err) {
     console.error('App init error:', err);
@@ -728,6 +715,8 @@ function showChatContextMenu(chatItem) {
 
   app.contextChat = { userId, chatId, name, verified, isPinned, isMuted };
 
+  console.log('📋 Context:', { userId, chatId, isPinned, isMuted });
+
   const avatarEl = document.getElementById('contextChatAvatar');
   const nameEl = document.getElementById('contextChatName');
   const subEl = document.getElementById('contextChatSub');
@@ -887,7 +876,14 @@ async function toggleMuteChat(chatId, mute) {
 
     if (error) throw error;
 
-    showToast(mute ? 'Chat muted' : 'Chat unmuted', 'success');
+    showToast(mute ? '🔕 Chat muted' : '🔔 Chat unmuted', 'success');
+
+    // Update local cache immediately for instant UI
+    const chat = app.chats.find(c => c.room.id === parseInt(chatId, 10));
+    if (chat) {
+      chat.room.muted = mute;
+    }
+
     await loadChats();
   } catch (err) {
     console.error('Mute error:', err);
@@ -904,7 +900,14 @@ async function togglePinChat(chatId, pin) {
 
     if (error) throw error;
 
-    showToast(pin ? 'Chat pinned' : 'Chat unpinned', 'success');
+    showToast(pin ? '📌 Chat pinned' : 'Chat unpinned', 'success');
+
+    // Update local cache
+    const chat = app.chats.find(c => c.room.id === parseInt(chatId, 10));
+    if (chat) {
+      chat.room.pinned = pin;
+    }
+
     await loadChats();
   } catch (err) {
     console.error('Pin error:', err);
@@ -932,7 +935,7 @@ async function deleteChatForMe(chatId) {
 
     if (error) throw error;
 
-    showToast('Chat deleted', 'success');
+    showToast('🗑️ Chat deleted', 'success');
     await loadChats();
   } catch (err) {
     console.error('Delete chat error:', err);
@@ -2468,7 +2471,6 @@ function appendMessage(msg) {
     if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate([20, 50, 20]);
     if (app.soundEnabled) playMessageSound();
 
-    // Show notification if not in active chat view
     const isChatOpen = document.getElementById('chatRoom')?.classList.contains('open');
     const isPageVisible = !document.hidden;
 
@@ -2554,7 +2556,7 @@ async function showMessageNotification(msg, senderName) {
 }
 
 // ============================================
-// LOAD CHATS LIST
+// LOAD CHATS LIST (with mute/pin UI)
 // ============================================
 async function loadChats() {
   const listEl = document.getElementById('chatList');
@@ -2633,24 +2635,42 @@ async function loadChats() {
       ? c.lastMessage.message.slice(0, 40) + '...'
       : c.lastMessage.message;
     const time = timeAgo(c.lastMessage.created_at);
+    const isPinned = c.room.pinned ? 'true' : 'false';
+    const isMuted = c.room.muted ? 'true' : 'false';
 
     return `
-      <div class="chat-item" 
+      <div class="chat-item${c.room.pinned ? ' pinned' : ''}${c.room.muted ? ' muted' : ''}" 
            data-user-id="${partner.id}" 
            data-chat-id="${c.room.id}"
            data-partner-name="${escapeHtml(partner.name)}"
            data-partner-verified="${partner.is_verified ? 'true' : 'false'}"
            data-last-message="${escapeHtml(preview)}"
-           data-pinned="${c.room.pinned ? 'true' : 'false'}"
-           data-muted="${c.room.muted ? 'true' : 'false'}">
+           data-pinned="${isPinned}"
+           data-muted="${isMuted}">
         <div class="avatar-wrapper">
           <div class="avatar">${initial}</div>
           <span class="status-dot ${status.color}"></span>
+          ${c.room.pinned ? `
+            <span class="chat-pin-icon" title="Pinned">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2z"/>
+              </svg>
+            </span>
+          ` : ''}
         </div>
         <div class="chat-item-info">
           <div class="chat-item-top">
             <span class="chat-item-name">${escapeHtml(partner.name)}${verifiedBadgeHTML(partner.is_verified, 'sm')}</span>
-            <span class="chat-item-time">${time}</span>
+            <span class="chat-item-time">
+              ${c.room.muted ? `
+                <span class="chat-mute-icon" title="Muted">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                  </svg>
+                </span>
+              ` : ''}
+              ${time}
+            </span>
           </div>
           <div class="chat-item-preview">${escapeHtml(preview)}</div>
         </div>
@@ -2824,7 +2844,6 @@ function initSettingsView() {
   if (app._settingsInited) return;
   app._settingsInited = true;
 
-  // Safety Center
   document.getElementById('safetyRow')?.addEventListener('click', () => {
     openSheet('safetyCenterSheet');
   });
@@ -2835,7 +2854,6 @@ function initSettingsView() {
     if (e.target.id === 'safetyCenterSheet') closeSheet('safetyCenterSheet');
   });
 
-  // About Vibe
   document.getElementById('aboutRow')?.addEventListener('click', () => {
     openSheet('aboutVibeSheet');
   });
@@ -2855,7 +2873,6 @@ function initSettingsView() {
     window.location.href = 'mailto:support@vibe-app.com';
   });
 
-  // Terms & Privacy
   document.getElementById('termsRow')?.addEventListener('click', () => {
     openSheet('termsSheet');
   });
@@ -2866,7 +2883,6 @@ function initSettingsView() {
     if (e.target.id === 'termsSheet') closeSheet('termsSheet');
   });
 
-  // Sign Out
   document.getElementById('settingsLogoutRow')?.addEventListener('click', async () => {
     if (confirm('Sign out of Vibe?')) await signOut();
   });
