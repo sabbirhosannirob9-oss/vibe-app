@@ -1,7 +1,17 @@
 /* ============================================
-   VIBE — Main App Logic — FINAL v2.1.4
+   VIBE — Main App Logic — FINAL v2.2.0
    ============================================
-   All Features + Mute/Unmute UI Fix
+   Features:
+   - Auth + Profile + Mood system
+   - Feed + Posts (with image)
+   - Matches + Active users
+   - Chat + Realtime + Read receipts + Typing
+   - Chat photo send + Message menu (Copy/Reply/Unsend)
+   - Gifts + Streaks + Confetti
+   - Full-screen Profile Page (Posts + About tabs)
+   - Avatar + Cover upload
+   - Privacy + Block + Report
+   - Audio unlock + Notification
 ============================================ */
 
 // ============================================
@@ -28,6 +38,7 @@ const app = {
   typingChannel: null,
   typingTimeout: null,
   partnerTyping: false,
+  partnerTypingTimer: null,
   profileTab: 'posts',
   moodChangeCount: 0,
   lastMoodChangeAt: null,
@@ -39,13 +50,15 @@ const app = {
   soundEnabled: true,
   vibrationEnabled: true,
   notificationsEnabled: true,
+  _pendingPostImage: null,
   _settingsInited: false,
   _navInited: false,
   _profileTabsInited: false,
   _feedRendering: false,
   _backInited: false,
   _chatMenuInited: false,
-  _contextMenuInited: false
+  _contextMenuInited: false,
+  _newFeaturesBooted: false
 };
 
 // ============================================
@@ -90,6 +103,9 @@ const app = {
     setupNotifications();
     renderEmptyStates();
 
+    // v2.2.0 — boot new features
+    bootVibeNewFeatures();
+
     hideAppLoading();
 
     const urlHash = window.location.hash.replace('#', '');
@@ -118,7 +134,7 @@ const app = {
       if (toggle) updateProfileToggleState(toggle);
     });
 
-    console.log('✅ App initialized (v2.1.4)');
+    console.log('✅ App initialized (v2.2.0)');
 
   } catch (err) {
     console.error('App init error:', err);
@@ -161,10 +177,12 @@ function loadUserPreferences() {
   app.soundEnabled = localStorage.getItem('vibe_sound') !== 'false';
   app.vibrationEnabled = localStorage.getItem('vibe_vibration') !== 'false';
   app.notificationsEnabled = localStorage.getItem('vibe_notifications') !== 'false';
+  window.__vibeSoundEnabled = app.soundEnabled;
 }
 
 function saveUserPreference(key, value) {
   localStorage.setItem(`vibe_${key}`, String(value));
+  if (key === 'sound') window.__vibeSoundEnabled = value;
 }
 
 // ============================================
@@ -177,6 +195,15 @@ function setupBackButton() {
   history.pushState({ vibe: true }, '', location.href);
 
   window.addEventListener('popstate', (e) => {
+    // v2.2.0 — Full profile page
+    const profilePage = document.getElementById('userProfilePage');
+    if (profilePage && profilePage.classList.contains('open')) {
+      e.preventDefault();
+      history.pushState(null, '', location.href);
+      closeFullProfile();
+      return;
+    }
+
     const chatRoom = document.getElementById('chatRoom');
     if (chatRoom && chatRoom.classList.contains('open')) {
       e.preventDefault();
@@ -297,6 +324,7 @@ function switchView(view, updateHash = true) {
   if (view === 'profile') {
     loadGiftStats();
     if (app.profileTab === 'posts') loadMyPosts();
+    if (typeof setupProfileImageButtons === 'function') setupProfileImageButtons();
   }
 
   if (view === 'matches') {
@@ -348,8 +376,9 @@ async function blockUser(userId) {
     app.blockedUsers.push(userId);
     showToast('User blocked', 'success');
 
-    closeChatRoom();
-    closeUserProfile();
+    // Close profile/chat if viewing blocked user
+    if (app.viewingProfile?.id === userId) closeFullProfile();
+
     await loadChats();
     await loadMatches();
     await loadActiveUsers();
@@ -374,7 +403,15 @@ async function unblockUser(userId) {
     showToast('User unblocked', 'success');
 
     await loadBlockedUsersList();
-    closeUserProfile();
+
+    // Refresh profile page if viewing
+    if (app.viewingProfile?.id === userId) {
+      const blockLabel = document.getElementById('ppBlockBtnLabel');
+      const blockBtn = document.getElementById('ppBlockBtn');
+      if (blockLabel) blockLabel.textContent = 'Block';
+      if (blockBtn) blockBtn.classList.remove('unblock');
+    }
+
     await loadChats();
   } catch (err) {
     console.error('Unblock error:', err);
@@ -622,7 +659,8 @@ function openChatMenu() {
       } else if (action === 'report') {
         openReportSheet(partner.id);
       } else if (action === 'view-profile') {
-        openUserProfile(partner);
+        // v2.2.0 — full profile page
+        openFullProfile(partner.id);
       }
     });
   });
@@ -635,7 +673,7 @@ function closeChatMenu() {
 }
 
 // ============================================
-// CHAT CONTEXT MENU (Long-press)
+// CHAT CONTEXT MENU (Long-press on chat list)
 // ============================================
 function setupChatContextMenu() {
   if (app._contextMenuInited) return;
@@ -646,10 +684,7 @@ function setupChatContextMenu() {
     if (e.target.id === 'chatContextMenu') closeChatContextMenu();
   });
 
-  document.getElementById('userProfileClose')?.addEventListener('click', closeUserProfile);
-  document.getElementById('userProfileSheet')?.addEventListener('click', (e) => {
-    if (e.target.id === 'userProfileSheet') closeUserProfile();
-  });
+  // v2.2.0 — old userProfileSheet listeners removed
 }
 
 function attachChatListLongPress(container) {
@@ -714,8 +749,6 @@ function showChatContextMenu(chatItem) {
   const isMuted = chatItem.dataset.muted === 'true';
 
   app.contextChat = { userId, chatId, name, verified, isPinned, isMuted };
-
-  console.log('📋 Context:', { userId, chatId, isPinned, isMuted });
 
   const avatarEl = document.getElementById('contextChatAvatar');
   const nameEl = document.getElementById('contextChatName');
@@ -848,12 +881,8 @@ async function handleContextAction(action) {
   if (action === 'message') {
     openChatWithUser(ctx.userId, ctx.name);
   } else if (action === 'view-profile') {
-    const partner = app.matches.find(m => m.id === ctx.userId) || {
-      id: ctx.userId,
-      name: ctx.name,
-      is_verified: ctx.verified
-    };
-    openUserProfile(partner);
+    // v2.2.0 — full profile page
+    openFullProfile(ctx.userId);
   } else if (action === 'mute') {
     await toggleMuteChat(ctx.chatId, !ctx.isMuted);
   } else if (action === 'pin') {
@@ -878,11 +907,8 @@ async function toggleMuteChat(chatId, mute) {
 
     showToast(mute ? '🔕 Chat muted' : '🔔 Chat unmuted', 'success');
 
-    // Update local cache immediately for instant UI
     const chat = app.chats.find(c => c.room.id === parseInt(chatId, 10));
-    if (chat) {
-      chat.room.muted = mute;
-    }
+    if (chat) chat.room.muted = mute;
 
     await loadChats();
   } catch (err) {
@@ -902,11 +928,8 @@ async function togglePinChat(chatId, pin) {
 
     showToast(pin ? '📌 Chat pinned' : 'Chat unpinned', 'success');
 
-    // Update local cache
     const chat = app.chats.find(c => c.room.id === parseInt(chatId, 10));
-    if (chat) {
-      chat.room.pinned = pin;
-    }
+    if (chat) chat.room.pinned = pin;
 
     await loadChats();
   } catch (err) {
@@ -944,139 +967,408 @@ async function deleteChatForMe(chatId) {
 }
 
 // ============================================
-// USER PROFILE VIEW
+// FULL PROFILE PAGE (v2.2.0)
 // ============================================
-async function openUserProfile(partner) {
-  if (!partner || !partner.id) return;
+async function openFullProfile(userId) {
+  if (!userId) return;
 
-  app.viewingProfile = partner;
+  if (isBlocked(userId)) {
+    showToast('This user is blocked', 'info');
+    return;
+  }
 
-  const overlay = document.getElementById('userProfileSheet');
-  const contentEl = document.getElementById('userProfileContent');
-  if (!overlay || !contentEl) return;
+  // Own profile → switch to profile tab
+  if (userId === app.user.id) {
+    switchView('profile');
+    return;
+  }
 
-  overlay.classList.add('open');
+  const page = document.getElementById('userProfilePage');
+  if (!page) return;
+
+  history.pushState({ profilePage: userId }, '', location.href);
+
+  page.classList.add('open');
+  page.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
 
-  contentEl.innerHTML = `
-    <div style="text-align: center; padding: 40px 20px;">
-      <div class="spinner" style="margin: 0 auto;"></div>
-    </div>
-  `;
+  const scroll = document.getElementById('profilePageScroll');
+  if (scroll) scroll.scrollTop = 0;
+
+  const postsList = document.getElementById('ppPostsList');
+  if (postsList) {
+    postsList.innerHTML = `<div class="pp-loading"><div class="spinner"></div>Loading…</div>`;
+  }
 
   try {
-    const { data: profile } = await sb
+    const { data: profile, error } = await sb
       .from('profiles')
-      .select('id, name, age, gender, city, interests, bio, is_verified, last_seen, streak_count, total_gifts')
-      .eq('id', partner.id)
+      .select('id, name, age, gender, city, interests, bio, is_verified, last_seen, streak_count, total_gifts, avatar_url, cover_url, created_at, profile_visibility')
+      .eq('id', userId)
       .maybeSingle();
 
+    if (error) throw error;
+
     if (!profile) {
-      contentEl.innerHTML = `<div class="app-empty-text">Profile not found</div>`;
+      showToast('Profile not found', 'error');
+      closeFullProfile();
       return;
     }
 
-    renderUserProfile(profile);
+    if (profile.profile_visibility === 'nobody' && profile.id !== app.user.id) {
+      showToast('This profile is private', 'info');
+      closeFullProfile();
+      return;
+    }
+
+    app.viewingProfile = profile;
+    renderFullProfile(profile);
+
+    await loadProfilePosts(userId);
+
   } catch (err) {
-    console.error('Load profile error:', err);
-    contentEl.innerHTML = `<div class="app-empty-text">Failed to load profile</div>`;
+    console.error('openFullProfile error:', err);
+    showToast('Failed to load profile', 'error');
+    closeFullProfile();
   }
 }
 
-function renderUserProfile(profile) {
-  const contentEl = document.getElementById('userProfileContent');
-  if (!contentEl) return;
+function renderFullProfile(profile) {
+  const p = profile;
 
-  const initial = (profile.name || 'U').charAt(0).toUpperCase();
-  const status = getActiveStatus(profile.last_seen);
-  const blocked = isBlocked(profile.id);
+  const titleEl = document.getElementById('profilePageTitle');
+  if (titleEl) titleEl.textContent = p.name || 'Profile';
 
-  const metaParts = [];
-  if (profile.age) metaParts.push(`<span class="pv-meta-item">${getIcon('meta_age')}<span>${profile.age}</span></span>`);
-  if (profile.gender) {
-    const iconKey = profile.gender === 'male' ? 'meta_male' : profile.gender === 'female' ? 'meta_female' : 'meta_other';
-    const label = profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1);
-    metaParts.push(`<span class="pv-meta-item">${getIcon(iconKey)}<span>${label}</span></span>`);
+  // Cover
+  const coverImg = document.getElementById('ppCoverImg');
+  const coverGrad = document.getElementById('ppCoverGradient');
+  if (coverImg) {
+    if (p.cover_url) {
+      coverImg.src = p.cover_url;
+      coverImg.style.display = 'block';
+      if (coverGrad) coverGrad.style.display = 'block';
+    } else {
+      coverImg.src = '';
+      coverImg.style.display = 'none';
+      if (coverGrad) coverGrad.style.display = 'none';
+    }
   }
-  if (profile.city) metaParts.push(`<span class="pv-meta-item">${getIcon('meta_city')}<span>${escapeHtml(profile.city)}</span></span>`);
 
-  const interestsHTML = (profile.interests && profile.interests.length > 0)
-    ? `
-      <div class="pv-section">
-        <div class="pv-section-title">Interests</div>
-        <div class="pv-interests">
-          ${profile.interests.map(i => `<span class="chip">${escapeHtml(i)}</span>`).join('')}
+  // Avatar
+  const avatarImg = document.getElementById('ppAvatarImg');
+  const avatarFallback = document.getElementById('ppAvatarFallback');
+  if (p.avatar_url) {
+    if (avatarImg) {
+      avatarImg.src = p.avatar_url;
+      avatarImg.style.display = 'block';
+    }
+    if (avatarFallback) avatarFallback.style.display = 'none';
+  } else {
+    if (avatarImg) {
+      avatarImg.src = '';
+      avatarImg.style.display = 'none';
+    }
+    if (avatarFallback) {
+      avatarFallback.textContent = (p.name || 'U').charAt(0).toUpperCase();
+      avatarFallback.style.display = 'flex';
+    }
+  }
+
+  // Status dot
+  const dot = document.getElementById('ppStatusDot');
+  if (dot) {
+    const status = getActiveStatus(p.last_seen);
+    dot.className = 'pp-status-dot ' + status.color;
+  }
+
+  // Name + verified
+  const nameEl = document.getElementById('ppName');
+  if (nameEl) {
+    nameEl.innerHTML = escapeHtml(p.name || 'User') + verifiedBadgeHTML(p.is_verified, 'lg');
+  }
+
+  // Meta
+  const metaEl = document.getElementById('ppMeta');
+  if (metaEl) {
+    const parts = [];
+    if (p.age) parts.push(`<span class="pp-meta-item">${getIcon('meta_age')}<span>${p.age}</span></span>`);
+    if (p.gender) {
+      const iconKey = p.gender === 'male' ? 'meta_male' : p.gender === 'female' ? 'meta_female' : 'meta_other';
+      const label = p.gender.charAt(0).toUpperCase() + p.gender.slice(1);
+      parts.push(`<span class="pp-meta-item">${getIcon(iconKey)}<span>${label}</span></span>`);
+    }
+    if (p.city) parts.push(`<span class="pp-meta-item">${getIcon('meta_city')}<span>${escapeHtml(p.city)}</span></span>`);
+
+    metaEl.innerHTML = parts.join('<span class="pp-meta-dot"></span>');
+  }
+
+  // Bio
+  const bioEl = document.getElementById('ppBio');
+  if (bioEl) {
+    if (p.bio) {
+      bioEl.textContent = p.bio;
+      bioEl.style.display = 'block';
+    } else {
+      bioEl.textContent = '';
+      bioEl.style.display = 'none';
+    }
+  }
+
+  // Stats
+  const streakEl = document.getElementById('ppStreak');
+  const giftsEl = document.getElementById('ppGifts');
+  if (streakEl) streakEl.textContent = p.streak_count || 0;
+  if (giftsEl) giftsEl.textContent = p.total_gifts || 0;
+
+  // Interests
+  const interestsWrap = document.getElementById('ppInterestsWrap');
+  const interestsEl = document.getElementById('ppInterests');
+  if (p.interests && p.interests.length > 0) {
+    if (interestsWrap) interestsWrap.style.display = 'block';
+    if (interestsEl) {
+      interestsEl.innerHTML = p.interests.map(i => `<span class="chip">${escapeHtml(i)}</span>`).join('');
+    }
+  } else {
+    if (interestsWrap) interestsWrap.style.display = 'none';
+  }
+
+  // Block button
+  const blockLabel = document.getElementById('ppBlockBtnLabel');
+  const blockBtn = document.getElementById('ppBlockBtn');
+  if (blockLabel && blockBtn) {
+    const blocked = isBlocked(p.id);
+    blockLabel.textContent = blocked ? 'Unblock' : 'Block';
+    blockBtn.classList.toggle('unblock', blocked);
+  }
+
+  // About
+  const aboutAge = document.getElementById('ppAboutAge');
+  const aboutGender = document.getElementById('ppAboutGender');
+  const aboutCity = document.getElementById('ppAboutCity');
+  const aboutLastSeen = document.getElementById('ppAboutLastSeen');
+  const aboutJoined = document.getElementById('ppAboutJoined');
+
+  if (aboutAge) aboutAge.textContent = p.age || '—';
+  if (aboutGender) aboutGender.textContent = p.gender
+    ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1)
+    : '—';
+  if (aboutCity) aboutCity.textContent = p.city || '—';
+
+  const statusInfo = getActiveStatus(p.last_seen);
+  if (aboutLastSeen) aboutLastSeen.textContent = statusInfo.label || '—';
+
+  if (aboutJoined) {
+    if (p.created_at) {
+      const joined = new Date(p.created_at);
+      aboutJoined.textContent = joined.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    } else {
+      aboutJoined.textContent = '—';
+    }
+  }
+
+  const aboutBioBlock = document.getElementById('ppAboutBioBlock');
+  const aboutBio = document.getElementById('ppAboutBio');
+  if (p.bio) {
+    if (aboutBioBlock) aboutBioBlock.style.display = 'block';
+    if (aboutBio) aboutBio.textContent = p.bio;
+  } else {
+    if (aboutBioBlock) aboutBioBlock.style.display = 'none';
+  }
+}
+
+function closeFullProfile() {
+  const page = document.getElementById('userProfilePage');
+  if (!page) return;
+
+  page.classList.remove('open');
+  page.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+
+  app.viewingProfile = null;
+
+  switchProfileTab('posts');
+}
+
+async function loadProfilePosts(userId) {
+  const listEl = document.getElementById('ppPostsList');
+  if (!listEl) return;
+
+  try {
+    const posts = await fetchUserPosts(userId, 30);
+
+    const postsCountEl = document.getElementById('ppPosts');
+    if (postsCountEl) postsCountEl.textContent = posts.length;
+
+    if (posts.length === 0) {
+      listEl.innerHTML = `
+        <div class="pp-empty">
+          <div class="pp-empty-icon">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <div class="pp-empty-title">No posts yet</div>
+          <div class="pp-empty-text">This user hasn't shared anything.</div>
         </div>
-      </div>
-    `
-    : '';
+      `;
+      return;
+    }
 
-  const bioHTML = profile.bio
-    ? `<p class="pv-bio">${escapeHtml(profile.bio)}</p>`
-    : '';
+    listEl.innerHTML = posts.map(p => renderPostCard(p)).join('');
+    attachPostListeners(listEl);
 
-  contentEl.innerHTML = `
-    <div class="pv-hero">
-      <div class="pv-avatar">
-        ${initial}
-        <span class="pv-avatar-status" style="background: ${status.color === 'green' ? '#10B981' : status.color === 'yellow' ? '#F59E0B' : '#9CA3AF'};"></span>
-      </div>
-      <div class="pv-name">
-        ${escapeHtml(profile.name)}${verifiedBadgeHTML(profile.is_verified, 'lg')}
-      </div>
-      <div class="pv-meta">${metaParts.join('')}</div>
-      ${bioHTML}
-    </div>
+  } catch (err) {
+    console.error('loadProfilePosts error:', err);
+    listEl.innerHTML = `<div class="pp-loading">Failed to load posts</div>`;
+  }
+}
 
-    ${interestsHTML}
+function switchProfileTab(tab) {
+  const tabs = document.querySelectorAll('.pp-tab');
+  const panes = document.querySelectorAll('.pp-tab-pane');
 
-    <div class="pv-stats">
-      <div class="pv-stat">
-        <div class="pv-stat-icon">🔥</div>
-        <div class="pv-stat-value">${profile.streak_count || 0}</div>
-        <div class="pv-stat-label">Day Streak</div>
-      </div>
-      <div class="pv-stat">
-        <div class="pv-stat-icon">⭐</div>
-        <div class="pv-stat-value">${profile.total_gifts || 0}</div>
-        <div class="pv-stat-label">Gifts</div>
-      </div>
-    </div>
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  panes.forEach(p => {
+    const isMatch = p.id === 'ppPane' + tab.charAt(0).toUpperCase() + tab.slice(1);
+    p.classList.toggle('active', isMatch);
+  });
+}
 
-    <div class="pv-actions">
-      <button class="pv-action-btn pv-action-chat" id="pvChatBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-        Message
-      </button>
-      <button class="pv-action-btn pv-action-block ${blocked ? 'unblock' : ''}" id="pvBlockBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          ${blocked ? `<polyline points="8 12 11 15 16 9"></polyline>` : `<line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>`}
-        </svg>
-        ${blocked ? 'Unblock' : 'Block'}
-      </button>
-    </div>
-  `;
-
-  document.getElementById('pvChatBtn')?.addEventListener('click', () => {
-    closeUserProfile();
-    openChatWithUser(profile.id, profile.name);
+function setupProfilePageButtons() {
+  // Back
+  document.getElementById('profilePageBack')?.addEventListener('click', () => {
+    history.back();
   });
 
-  document.getElementById('pvBlockBtn')?.addEventListener('click', () => {
+  // Menu (⋮) — use existing chat context sheet style with action choices
+  document.getElementById('profilePageMenu')?.addEventListener('click', () => {
+    const p = app.viewingProfile;
+    if (!p) return;
+    const blocked = isBlocked(p.id);
+
+    // Reuse the chat context menu sheet pattern
+    const sheet = document.getElementById('chatContextMenu');
+    const optionsEl = document.getElementById('chatContextOptions');
+    const avatarEl = document.getElementById('contextChatAvatar');
+    const nameEl = document.getElementById('contextChatName');
+    const subEl = document.getElementById('contextChatSub');
+
+    if (!sheet || !optionsEl) return;
+
+    if (avatarEl) avatarEl.textContent = (p.name || 'U').charAt(0).toUpperCase();
+    if (nameEl) nameEl.innerHTML = escapeHtml(p.name) + verifiedBadgeHTML(p.is_verified, 'sm');
+    if (subEl) subEl.textContent = p.city || 'View profile options';
+
+    optionsEl.innerHTML = `
+      <button class="sheet-option ${blocked ? '' : 'danger'}" data-pp-action="block">
+        <div class="sheet-option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            ${blocked
+              ? '<polyline points="8 12 11 15 16 9"></polyline>'
+              : '<line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>'}
+          </svg>
+        </div>
+        <div class="sheet-option-content">
+          <div class="sheet-option-label">${blocked ? 'Unblock User' : 'Block User'}</div>
+        </div>
+      </button>
+
+      <button class="sheet-option danger" data-pp-action="report">
+        <div class="sheet-option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+            <line x1="4" y1="22" x2="4" y2="15"></line>
+          </svg>
+        </div>
+        <div class="sheet-option-content">
+          <div class="sheet-option-label">Report User</div>
+        </div>
+      </button>
+
+      <button class="sheet-option" data-pp-action="copy-link">
+        <div class="sheet-option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+        </div>
+        <div class="sheet-option-content">
+          <div class="sheet-option-label">Copy Link</div>
+        </div>
+      </button>
+    `;
+
+    optionsEl.querySelectorAll('[data-pp-action]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const action = btn.dataset.ppAction;
+        closeChatContextMenu();
+
+        if (action === 'block') {
+          if (blocked) {
+            await unblockUser(p.id);
+          } else {
+            if (confirm(`Block ${p.name}?`)) await blockUser(p.id);
+          }
+        } else if (action === 'report') {
+          openReportSheet(p.id);
+        } else if (action === 'copy-link') {
+          const url = location.origin + '/profile?user=' + p.id;
+          try {
+            await navigator.clipboard.writeText(url);
+            showToast('Link copied', 'success');
+          } catch (_) {
+            showToast('Copy failed', 'error');
+          }
+        }
+      });
+    });
+
+    sheet.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  });
+
+  // Message button
+  document.getElementById('ppMessageBtn')?.addEventListener('click', async () => {
+    const p = app.viewingProfile;
+    if (!p) return;
+    closeFullProfile();
+    await openChatWithUser(p.id, p.name);
+  });
+
+  // Block button (direct)
+  document.getElementById('ppBlockBtn')?.addEventListener('click', async () => {
+    const p = app.viewingProfile;
+    if (!p) return;
+    const blocked = isBlocked(p.id);
     if (blocked) {
-      unblockUser(profile.id);
+      await unblockUser(p.id);
     } else {
-      if (confirm(`Block ${profile.name}?`)) blockUser(profile.id);
+      if (confirm(`Block ${p.name}?`)) await blockUser(p.id);
     }
   });
-}
 
-function closeUserProfile() {
-  closeSheet('userProfileSheet');
-  app.viewingProfile = null;
+  // Report button (direct)
+  document.getElementById('ppReportBtn')?.addEventListener('click', () => {
+    const p = app.viewingProfile;
+    if (!p) return;
+    openReportSheet(p.id);
+  });
+
+  // Tabs
+  document.querySelectorAll('.pp-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      switchProfileTab(tab.dataset.tab);
+    });
+  });
+
+  // Escape key (desktop)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && app.viewingProfile) {
+      closeFullProfile();
+    }
+  });
 }
 
 // ============================================
@@ -1206,7 +1498,9 @@ function setupPostSystem() {
         counter.classList.toggle('warn', len > 240 && len <= 270);
         counter.classList.toggle('danger', len > 270);
       }
-      if (submit) submit.disabled = len === 0 || len > 280;
+      if (submit) {
+        submit.disabled = (len === 0 && !app._pendingPostImage) || len > 280;
+      }
     });
   }
 
@@ -1318,6 +1612,8 @@ function openCreatePost() {
   if (counter) counter.textContent = '0 / 280';
   if (submit) submit.disabled = true;
 
+  clearCreatePostImage();
+
   overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -1332,19 +1628,36 @@ async function submitPost() {
   const input = document.getElementById('createPostInput');
   const submitBtn = document.getElementById('createPostSubmit');
   const content = input.value.trim();
-  if (!content) return;
+  if (!content && !app._pendingPostImage) return;
 
   setButtonLoading(submitBtn, true);
 
   try {
-    const newPost = await createPost(content);
+    let imageData = null;
+
+    if (app._pendingPostImage && typeof uploadPostImage === 'function') {
+      imageData = await uploadPostImage(app._pendingPostImage);
+    }
+
+    const postPayload = { content: content || '' };
+    if (imageData) {
+      postPayload.image_url = imageData.url;
+      postPayload.image_width = imageData.width;
+      postPayload.image_height = imageData.height;
+    }
+
+    const newPost = await createPost(postPayload);
     showToast('Post shared!', 'success');
     closeCreatePost();
+    clearCreatePostImage();
 
     const optimisticPost = {
       id: newPost.id,
       user_id: app.user.id,
       content: content,
+      image_url: imageData?.url || null,
+      image_width: imageData?.width || null,
+      image_height: imageData?.height || null,
       created_at: newPost.created_at || new Date().toISOString(),
       author_name: app.profile.name,
       author_verified: app.profile.is_verified || false,
@@ -1948,6 +2261,12 @@ async function openChatRoom(partner) {
 
   cancelReply();
 
+  // v2.2.0 — new features
+  unlockAudioOnFirstTap();
+  setupChatAttachButton();
+  attachMessageLongPress();
+  setupMessageContextMenu();
+
   await loadMessages();
   subscribeToMessages();
   subscribeToTyping();
@@ -1973,8 +2292,10 @@ function closeChatRoom() {
   }
 
   cancelReply();
+  removeTypingBubble();
   app.currentPartner = null;
   app.currentRoom = null;
+  window.__activeRoomId = null;
   app.partnerTyping = false;
 
   loadChats();
@@ -2033,6 +2354,7 @@ async function loadMessages() {
   if (!room) return;
 
   app.currentRoom = room;
+  window.__activeRoomId = room.id;
 
   const { data: messages, error } = await sb
     .from('messages')
@@ -2078,36 +2400,50 @@ function renderMessages(messages) {
 
   el.innerHTML = groups.map(g => {
     if (g.type === 'date') return `<div class="msg-date">${formatDate(g.date)}</div>`;
-    const m = g.msg;
-    const mine = m.sender_id === app.user.id;
-    const senderName = mine ? 'You' : (app.currentPartner?.name || 'User');
-
-    return `
-      <div class="msg-wrapper ${mine ? 'mine' : 'theirs'}">
-        <div class="msg-swipe-reply-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 17 4 12 9 7"></polyline>
-            <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
-          </svg>
-        </div>
-        <div class="msg ${mine ? 'mine' : 'theirs'}" 
-             data-msg-id="${m.id}" 
-             data-msg-text="${escapeHtml(m.message)}"
-             data-msg-sender="${escapeHtml(senderName)}"
-             data-msg-time="${m.created_at}"
-             data-msg-read="${m.read_at ? 'true' : 'false'}">
-          <div class="msg-bubble">${escapeHtml(m.message)}</div>
-          <div class="msg-meta">
-            <span>${formatTime(m.created_at)}</span>
-            ${mine ? renderMessageStatus(m) : ''}
-          </div>
-        </div>
-      </div>
-    `;
+    return renderMessageRow(g.msg);
   }).join('');
 
   attachMessageSwipe(el);
+  attachMessageLongPress();
   scrollToBottom();
+}
+
+function renderMessageRow(m) {
+  const mine = m.sender_id === app.user.id;
+  const senderName = mine ? 'You' : (app.currentPartner?.name || 'User');
+  const isImage = m.message_type === 'image' || !!m.image_url;
+
+  let bubbleInner;
+  if (isImage) {
+    bubbleInner = `<img src="${m.image_url}" class="chat-photo" alt="photo" onclick="openImageViewer('${m.image_url}')">`;
+  } else {
+    bubbleInner = escapeHtml(m.message || '');
+  }
+
+  return `
+    <div class="msg-wrapper ${mine ? 'mine' : 'theirs'}">
+      <div class="msg-swipe-reply-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 17 4 12 9 7"></polyline>
+          <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+        </svg>
+      </div>
+      <div class="msg ${mine ? 'mine' : 'theirs'}${isImage ? ' image-message' : ''}" 
+           data-msg-id="${m.id}" 
+           data-msg-text="${escapeHtml(m.message || '')}"
+           data-msg-sender="${escapeHtml(senderName)}"
+           data-msg-time="${m.created_at}"
+           data-msg-read="${m.read_at ? 'true' : 'false'}"
+           data-mine="${mine ? 'true' : 'false'}"
+           data-sender-name="${escapeHtml(senderName)}">
+        <div class="msg-bubble${isImage ? ' image-bubble' : ''}">${bubbleInner}</div>
+        <div class="msg-meta">
+          <span>${formatTime(m.created_at)}</span>
+          ${mine ? renderMessageStatus(m) : ''}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function formatDate(iso) {
@@ -2215,31 +2551,42 @@ function sendTypingStatus() {
   }, 2000);
 }
 
+let __typingHideTimer = null;
+
 function showPartnerTyping() {
   app.partnerTyping = true;
+
   const statusEl = document.getElementById('chatStatus');
-  if (!statusEl) return;
-
-  statusEl.innerHTML = `
-    <span class="typing-indicator show">
-      typing
-      <span class="typing-dots">
-        <span class="typing-dot"></span>
-        <span class="typing-dot"></span>
-        <span class="typing-dot"></span>
+  if (statusEl) {
+    statusEl.innerHTML = `
+      <span class="typing-indicator show">
+        typing
+        <span class="typing-dots">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </span>
       </span>
-    </span>
-  `;
+    `;
+  }
 
-  clearTimeout(app.partnerTypingTimer);
-  app.partnerTypingTimer = setTimeout(hidePartnerTyping, 3000);
+  if (typeof showTypingBubble === 'function') showTypingBubble();
+
+  clearTimeout(__typingHideTimer);
+  __typingHideTimer = setTimeout(hidePartnerTyping, 4000);
 }
 
 function hidePartnerTyping() {
   app.partnerTyping = false;
+
+  if (typeof removeTypingBubble === 'function') removeTypingBubble();
+
   if (app.currentPartner) {
     updatePartnerStatus(app.currentPartner.last_seen);
   }
+
+  clearTimeout(__typingHideTimer);
+  __typingHideTimer = null;
 }
 
 // ============================================
@@ -2435,47 +2782,29 @@ function appendMessage(msg) {
   if (empty) el.innerHTML = '';
 
   const mine = msg.sender_id === app.user.id;
-  const senderName = mine ? 'You' : (app.currentPartner?.name || 'User');
 
   const div = document.createElement('div');
-  div.className = `msg-wrapper ${mine ? 'mine' : 'theirs'}`;
-  div.innerHTML = `
-    <div class="msg-swipe-reply-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="9 17 4 12 9 7"></polyline>
-        <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
-      </svg>
-    </div>
-    <div class="msg ${mine ? 'mine' : 'theirs'}" 
-         data-msg-id="${msg.id}" 
-         data-msg-text="${escapeHtml(msg.message)}"
-         data-msg-sender="${escapeHtml(senderName)}"
-         data-msg-time="${msg.created_at}"
-         data-msg-read="${msg.read_at ? 'true' : 'false'}">
-      <div class="msg-bubble">${escapeHtml(msg.message)}</div>
-      <div class="msg-meta">
-        <span>${formatTime(msg.created_at)}</span>
-        ${mine ? renderMessageStatus(msg) : ''}
-      </div>
-    </div>
-  `;
-
-  el.appendChild(div);
+  div.innerHTML = renderMessageRow(msg);
+  const row = div.firstElementChild;
+  el.appendChild(row);
 
   attachMessageSwipe(el);
+  attachMessageLongPress();
 
   scrollToBottom();
 
   if (!mine) {
     markMessagesAsRead();
     if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate([20, 50, 20]);
-    if (app.soundEnabled) playMessageSound();
+    if (app.soundEnabled && typeof playSound === 'function') {
+      playSound('assets/icons/message.mp3', 0.6);
+    }
 
     const isChatOpen = document.getElementById('chatRoom')?.classList.contains('open');
     const isPageVisible = !document.hidden;
 
     if (!isChatOpen || !isPageVisible) {
-      showMessageNotification(msg, senderName);
+      showMessageNotification(msg, app.currentPartner?.name || 'New Message');
     }
   }
 }
@@ -2498,61 +2827,6 @@ function updateMessageReadStatus(msg) {
 }
 
 // ============================================
-// MESSAGE SOUND — Custom MP3
-// ============================================
-let messageAudio = null;
-
-function playMessageSound() {
-  try {
-    if (!app.soundEnabled) return;
-
-    // Create audio instance once
-    if (!messageAudio) {
-      messageAudio = new Audio('assets/icons/message.mp3');
-      messageAudio.preload = 'auto';
-      messageAudio.volume = 0.7;
-    }
-
-    // Reset and play
-    messageAudio.currentTime = 0;
-    messageAudio.play().catch(err => {
-      console.log('🔇 Audio blocked:', err.message);
-    });
-  } catch (err) {
-    console.error('Sound error:', err);
-  }
-}
-
-// ============================================
-// PRELOAD AUDIO ON FIRST USER INTERACTION
-// ============================================
-function unlockAudio() {
-  if (messageAudio) return;
-
-  messageAudio = new Audio('assets/icons/message.mp3');
-  messageAudio.preload = 'auto';
-  messageAudio.volume = 0.7;
-
-  // Silent play to unlock
-  messageAudio.volume = 0;
-  messageAudio.play().then(() => {
-    messageAudio.pause();
-    messageAudio.currentTime = 0;
-    messageAudio.volume = 0.7;
-    console.log('🔊 Audio unlocked');
-  }).catch(() => {
-    messageAudio = null;
-  });
-
-  document.removeEventListener('click', unlockAudio);
-  document.removeEventListener('touchstart', unlockAudio);
-}
-
-// Attach unlock listeners
-document.addEventListener('click', unlockAudio, { once: true });
-document.addEventListener('touchstart', unlockAudio, { once: true });
-
-// ============================================
 // MESSAGE NOTIFICATION
 // ============================================
 async function showMessageNotification(msg, senderName) {
@@ -2562,7 +2836,7 @@ async function showMessageNotification(msg, senderName) {
 
   try {
     const notification = new Notification(senderName || 'New Message', {
-      body: msg.message.slice(0, 120),
+      body: (msg.message || '').slice(0, 120),
       icon: 'assets/icons/android-chrome-192x192.png',
       badge: 'assets/icons/android-chrome-192x192.png',
       tag: 'vibe-msg-' + msg.id,
@@ -2589,7 +2863,7 @@ async function showMessageNotification(msg, senderName) {
 }
 
 // ============================================
-// LOAD CHATS LIST (with mute/pin UI)
+// LOAD CHATS LIST
 // ============================================
 async function loadChats() {
   const listEl = document.getElementById('chatList');
@@ -2664,9 +2938,9 @@ async function loadChats() {
     const partner = c.partner;
     const initial = (partner.name || 'U').charAt(0).toUpperCase();
     const status = getActiveStatus(partner.last_seen);
-    const preview = c.lastMessage.message.length > 40
-      ? c.lastMessage.message.slice(0, 40) + '...'
-      : c.lastMessage.message;
+    const preview = (c.lastMessage.message || '').length > 40
+      ? (c.lastMessage.message || '').slice(0, 40) + '...'
+      : (c.lastMessage.message || '');
     const time = timeAgo(c.lastMessage.created_at);
     const isPinned = c.room.pinned ? 'true' : 'false';
     const isMuted = c.room.muted ? 'true' : 'false';
@@ -2751,14 +3025,41 @@ function updateChatBadge(count) {
 }
 
 // ============================================
-// PROFILE VIEW
+// PROFILE VIEW (own profile)
 // ============================================
 function renderProfileView() {
   if (!app.profile) return;
   const p = app.profile;
 
+  const avatarImg = document.getElementById('profileAvatarImg');
+  const avatarFallback = document.getElementById('profileAvatarFallback');
+
+  if (p.avatar_url) {
+    if (avatarImg) { avatarImg.src = p.avatar_url; avatarImg.style.display = 'block'; }
+    if (avatarFallback) avatarFallback.style.display = 'none';
+  } else {
+    if (avatarImg) { avatarImg.src = ''; avatarImg.style.display = 'none'; }
+    if (avatarFallback) {
+      avatarFallback.textContent = (p.name || 'U').charAt(0).toUpperCase();
+      avatarFallback.style.display = 'flex';
+    }
+  }
+
   const avatarEl = document.getElementById('profileAvatar');
-  if (avatarEl) avatarEl.textContent = (p.name || 'U').charAt(0).toUpperCase();
+  if (avatarEl && !avatarImg) {
+    avatarEl.textContent = (p.name || 'U').charAt(0).toUpperCase();
+  }
+
+  const coverImg = document.getElementById('profileCoverImg');
+  if (coverImg) {
+    if (p.cover_url) {
+      coverImg.src = p.cover_url;
+      coverImg.style.display = 'block';
+    } else {
+      coverImg.src = '';
+      coverImg.style.display = 'none';
+    }
+  }
 
   const nameEl = document.getElementById('profileName');
   if (nameEl) nameEl.innerHTML = escapeHtml(p.name) + verifiedBadgeHTML(p.is_verified, 'lg');
@@ -3234,3 +3535,510 @@ function spawnConfetti(count = 30, color = '#2563EB') {
     setTimeout(() => piece.remove(), 4000);
   }
 }
+
+/* ============================================================
+   NEW FEATURES (v2.2.0)
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   AUDIO UNLOCK
+   ------------------------------------------------------------ */
+let __audioUnlocked = false;
+let __audioCtx = null;
+let __audioUnlockBound = false;
+
+function unlockAudioOnFirstTap() {
+  if (__audioUnlocked || __audioUnlockBound) return;
+  __audioUnlockBound = true;
+
+  const doUnlock = () => {
+    try {
+      if (!__audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) __audioCtx = new AC();
+      }
+      if (__audioCtx && __audioCtx.state === 'suspended') {
+        __audioCtx.resume().catch(() => {});
+      }
+
+      if (__audioCtx) {
+        const buf = __audioCtx.createBuffer(1, 1, 22050);
+        const src = __audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(__audioCtx.destination);
+        try { src.start(0); } catch (_) {}
+      }
+
+      __audioUnlocked = true;
+
+      document.removeEventListener('touchstart', doUnlock, true);
+      document.removeEventListener('click', doUnlock, true);
+      document.removeEventListener('keydown', doUnlock, true);
+      console.log('[Vibe] 🔊 Audio unlocked');
+    } catch (err) {
+      console.warn('[Vibe] Audio unlock error:', err);
+    }
+  };
+
+  document.addEventListener('touchstart', doUnlock, true);
+  document.addEventListener('click', doUnlock, true);
+  document.addEventListener('keydown', doUnlock, true);
+}
+
+function playSound(src = 'assets/icons/message.mp3', volume = 0.6) {
+  try {
+    if (window.__vibeSoundEnabled === false) return;
+    const audio = new Audio(src);
+    audio.volume = volume;
+    const p = audio.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch (_) {}
+}
+
+unlockAudioOnFirstTap();
+
+/* ------------------------------------------------------------
+   TYPING BUBBLE
+   ------------------------------------------------------------ */
+let __typingBubbleEl = null;
+
+function showTypingBubble() {
+  const container = document.getElementById('chatMessages') ||
+                    document.querySelector('.chat-messages');
+  if (!container) return;
+  if (__typingBubbleEl && __typingBubbleEl.parentNode) return;
+
+  const el = document.createElement('div');
+  el.className = 'typing-bubble';
+  el.innerHTML = `<span class="dot"></span><span class="dot"></span><span class="dot"></span>`;
+  container.appendChild(el);
+
+  __typingBubbleEl = el;
+  scrollToBottom();
+}
+
+function removeTypingBubble() {
+  if (__typingBubbleEl && __typingBubbleEl.parentNode) {
+    __typingBubbleEl.parentNode.removeChild(__typingBubbleEl);
+  }
+  __typingBubbleEl = null;
+}
+
+/* ------------------------------------------------------------
+   MESSAGE CONTEXT MENU
+   ------------------------------------------------------------ */
+let __activeMessageEl = null;
+let __activeMessageData = null;
+
+function setupMessageContextMenu() {
+  const backdrop = document.getElementById('messageMenuOverlay');
+  if (backdrop && !backdrop.__vibeBound) {
+    backdrop.addEventListener('click', hideMessageMenu);
+    backdrop.__vibeBound = true;
+  }
+
+  const menu = document.getElementById('messageMenu');
+  if (menu && !menu.__vibeBound) {
+    menu.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-action]');
+      if (!item) return;
+      handleMessageAction(item.dataset.action);
+    });
+    menu.__vibeBound = true;
+  }
+}
+
+function attachMessageLongPress() {
+  const container = document.getElementById('chatMessages') ||
+                    document.querySelector('.chat-messages');
+  if (!container) return;
+  if (container.__vibeLongPressBound) return;
+  container.__vibeLongPressBound = true;
+
+  let pressTimer = null;
+  let startX = 0, startY = 0;
+  let currentMsg = null;
+
+  const clearTimer = () => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  };
+
+  container.addEventListener('touchstart', (e) => {
+    const msgEl = e.target.closest('.msg');
+    if (!msgEl) return;
+    const touch = e.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    currentMsg = msgEl;
+
+    clearTimer();
+    pressTimer = setTimeout(() => {
+      if (currentMsg) {
+        showMessageMenu(currentMsg);
+        if (app.vibrationEnabled && navigator.vibrate) navigator.vibrate(15);
+      }
+    }, 500);
+  }, { passive: true });
+
+  container.addEventListener('touchmove', (e) => {
+    if (!pressTimer) return;
+    const touch = e.touches[0];
+    if (Math.abs(touch.clientX - startX) > 10 ||
+        Math.abs(touch.clientY - startY) > 10) {
+      clearTimer();
+    }
+  }, { passive: true });
+
+  container.addEventListener('touchend', clearTimer);
+  container.addEventListener('touchcancel', clearTimer);
+
+  container.addEventListener('contextmenu', (e) => {
+    const msgEl = e.target.closest('.msg');
+    if (!msgEl) return;
+    e.preventDefault();
+    showMessageMenu(msgEl);
+  });
+}
+
+function showMessageMenu(msgEl) {
+  if (!msgEl) return;
+
+  const overlay = document.getElementById('messageMenuOverlay');
+  const menu = document.getElementById('messageMenu');
+  if (!overlay || !menu) return;
+
+  __activeMessageEl = msgEl;
+  __activeMessageData = {
+    id: msgEl.dataset.msgId,
+    text: msgEl.dataset.msgText || '',
+    isMine: msgEl.dataset.mine === 'true' || msgEl.classList.contains('mine')
+  };
+
+  const unsendBtn = menu.querySelector('[data-action="unsend"]');
+  if (unsendBtn) {
+    unsendBtn.style.display = __activeMessageData.isMine ? 'flex' : 'none';
+  }
+
+  msgEl.classList.add('menu-active');
+  overlay.classList.add('active');
+  menu.classList.add('active');
+}
+
+function hideMessageMenu() {
+  const overlay = document.getElementById('messageMenuOverlay');
+  const menu = document.getElementById('messageMenu');
+  if (overlay) overlay.classList.remove('active');
+  if (menu) menu.classList.remove('active');
+  if (__activeMessageEl) __activeMessageEl.classList.remove('menu-active');
+  __activeMessageEl = null;
+  __activeMessageData = null;
+}
+
+async function handleMessageAction(action) {
+  const data = __activeMessageData;
+  const el = __activeMessageEl;
+  hideMessageMenu();
+  if (!data || !el) return;
+
+  switch (action) {
+    case 'copy': {
+      try {
+        await navigator.clipboard.writeText(data.text || '');
+        showToast('Copied', 'success');
+      } catch (_) {
+        showToast('Copy failed', 'error');
+      }
+      break;
+    }
+
+    case 'reply': {
+      showReplyPreview(data.text, el.dataset.senderName || 'User');
+      break;
+    }
+
+    case 'unsend': {
+      if (!data.isMine) return;
+      await unsendMessage(data.id, el);
+      break;
+    }
+
+    default:
+      console.warn('Unknown message action:', action);
+  }
+}
+
+async function unsendMessage(messageId, msgEl) {
+  try {
+    const { error } = await sb.from('messages').delete().eq('id', messageId);
+    if (error) throw error;
+
+    const wrapper = msgEl.closest('.msg-wrapper') || msgEl;
+    if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+    showToast('Message unsent', 'success');
+  } catch (err) {
+    console.error('unsendMessage error:', err);
+    showToast('Unsend failed', 'error');
+  }
+}
+
+/* ------------------------------------------------------------
+   CHAT ATTACH BUTTON
+   ------------------------------------------------------------ */
+function setupChatAttachButton() {
+  const attachBtn = document.getElementById('chatAttachBtn');
+  const fileInput = document.getElementById('chatPhotoFileInput');
+  if (!attachBtn || !fileInput) return;
+  if (attachBtn.__vibeBound) return;
+  attachBtn.__vibeBound = true;
+
+  attachBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    fileInput.value = '';
+    if (!file) return;
+
+    const roomId = app.currentRoom?.id;
+    if (!roomId) {
+      showToast('No active chat', 'error');
+      return;
+    }
+
+    if (typeof handleImageUpload === 'function') {
+      await handleImageUpload(file, 'chat', roomId);
+    } else {
+      showToast('Upload module missing', 'error');
+    }
+  });
+}
+
+/* ------------------------------------------------------------
+   IMAGE UPLOAD SHEET (avatar / cover)
+   ------------------------------------------------------------ */
+let __uploadSheetTarget = null;
+
+function setupImageUploadSheet() {
+  const sheet = document.getElementById('imageUploadSheet');
+  const backdrop = document.getElementById('sheetBackdrop');
+  if (!sheet) return;
+  if (sheet.__vibeBound) return;
+  sheet.__vibeBound = true;
+
+  sheet.querySelectorAll('[data-upload-action]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const action = el.dataset.uploadAction;
+
+      if (action === 'remove') {
+        closeImageUploadSheet();
+        if (__uploadSheetTarget === 'avatar') {
+          if (typeof removeAvatar === 'function') await removeAvatar();
+        } else if (__uploadSheetTarget === 'cover') {
+          try {
+            const { data: { user } } = await sb.auth.getUser();
+            if (user) {
+              await sb.from('profiles').update({ cover_url: null }).eq('id', user.id);
+              if (app.profile) app.profile.cover_url = null;
+              if (typeof updateCoverUI === 'function') updateCoverUI(null);
+              showToast('Cover removed', 'success');
+            }
+          } catch (err) {
+            console.error('Remove cover error:', err);
+            showToast('Failed to remove', 'error');
+          }
+        }
+        return;
+      }
+
+      const inputId = action === 'camera' ? 'cameraFileInput' : (
+        __uploadSheetTarget === 'avatar' ? 'avatarFileInput' :
+        __uploadSheetTarget === 'cover' ? 'coverFileInput' : null
+      );
+      const input = inputId ? document.getElementById(inputId) : null;
+      closeImageUploadSheet();
+      if (input) input.click();
+    });
+  });
+
+  const avatarInput = document.getElementById('avatarFileInput');
+  if (avatarInput && !avatarInput.__vibeBound) {
+    avatarInput.__vibeBound = true;
+    avatarInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      avatarInput.value = '';
+      if (!file) return;
+      if (typeof handleImageUpload === 'function') {
+        await handleImageUpload(file, 'avatar');
+      }
+    });
+  }
+
+  const coverInput = document.getElementById('coverFileInput');
+  if (coverInput && !coverInput.__vibeBound) {
+    coverInput.__vibeBound = true;
+    coverInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      coverInput.value = '';
+      if (!file) return;
+      if (typeof handleImageUpload === 'function') {
+        await handleImageUpload(file, 'cover');
+      }
+    });
+  }
+
+  const camInput = document.getElementById('cameraFileInput');
+  if (camInput && !camInput.__vibeBound) {
+    camInput.__vibeBound = true;
+    camInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      camInput.value = '';
+      if (!file) return;
+      const target = __uploadSheetTarget || 'avatar';
+      if (typeof handleImageUpload === 'function') {
+        await handleImageUpload(file, target);
+      }
+    });
+  }
+
+  if (backdrop && !backdrop.__vibeBound) {
+    backdrop.__vibeBound = true;
+    backdrop.addEventListener('click', closeImageUploadSheet);
+  }
+}
+
+function openImageUploadSheet(target) {
+  __uploadSheetTarget = target;
+  const sheet = document.getElementById('imageUploadSheet');
+  const backdrop = document.getElementById('sheetBackdrop');
+  if (!sheet) return;
+
+  const removeBtn = sheet.querySelector('[data-upload-action="remove"]');
+  if (removeBtn) {
+    if (target === 'avatar') {
+      const src = document.getElementById('profileAvatarImg')?.src;
+      removeBtn.style.display = src ? 'flex' : 'none';
+    } else if (target === 'cover') {
+      const src = document.getElementById('profileCoverImg')?.src;
+      removeBtn.style.display = src ? 'flex' : 'none';
+    } else {
+      removeBtn.style.display = 'none';
+    }
+  }
+
+  sheet.classList.add('active');
+  if (backdrop) backdrop.classList.add('active');
+}
+
+function closeImageUploadSheet() {
+  const sheet = document.getElementById('imageUploadSheet');
+  const backdrop = document.getElementById('sheetBackdrop');
+  if (sheet) sheet.classList.remove('active');
+  if (backdrop) backdrop.classList.remove('active');
+  __uploadSheetTarget = null;
+}
+
+function setupProfileImageButtons() {
+  const avatarEdit = document.getElementById('profileAvatarEdit');
+  const coverEdit = document.getElementById('profileCoverEdit');
+
+  if (avatarEdit && !avatarEdit.__vibeBound) {
+    avatarEdit.__vibeBound = true;
+    avatarEdit.addEventListener('click', () => openImageUploadSheet('avatar'));
+  }
+  if (coverEdit && !coverEdit.__vibeBound) {
+    coverEdit.__vibeBound = true;
+    coverEdit.addEventListener('click', () => openImageUploadSheet('cover'));
+  }
+}
+
+/* ------------------------------------------------------------
+   CREATE POST IMAGE
+   ------------------------------------------------------------ */
+function setupCreatePostImage() {
+  const input = document.getElementById('createPostImageInput');
+  const removeBtn = document.getElementById('createPostImageRemove');
+  if (!input) return;
+
+  if (input.__vibeBound) return;
+  input.__vibeBound = true;
+
+  input.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    input.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select an image', 'error');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Image too large (max 10MB)', 'error');
+      return;
+    }
+
+    app._pendingPostImage = file;
+    showCreatePostImagePreview(file);
+  });
+
+  if (removeBtn && !removeBtn.__vibeBound) {
+    removeBtn.__vibeBound = true;
+    removeBtn.addEventListener('click', clearCreatePostImage);
+  }
+}
+
+function showCreatePostImagePreview(file) {
+  const preview = document.getElementById('createPostImagePreview');
+  const img = document.getElementById('createPostImagePreviewImg');
+  if (!preview || !img) return;
+
+  const url = URL.createObjectURL(file);
+  img.src = url;
+  preview.style.display = 'block';
+
+  if (preview.__lastUrl) URL.revokeObjectURL(preview.__lastUrl);
+  preview.__lastUrl = url;
+
+  const submit = document.getElementById('createPostSubmit');
+  if (submit) submit.disabled = false;
+}
+
+function clearCreatePostImage() {
+  app._pendingPostImage = null;
+
+  const preview = document.getElementById('createPostImagePreview');
+  const img = document.getElementById('createPostImagePreviewImg');
+
+  if (preview) {
+    if (preview.__lastUrl) {
+      URL.revokeObjectURL(preview.__lastUrl);
+      preview.__lastUrl = null;
+    }
+    preview.style.display = 'none';
+  }
+  if (img) img.src = '';
+
+  const input = document.getElementById('createPostInput');
+  const submit = document.getElementById('createPostSubmit');
+  if (submit && input) submit.disabled = input.value.trim().length === 0;
+}
+
+/* ------------------------------------------------------------
+   BOOT NEW FEATURES
+   ------------------------------------------------------------ */
+function bootVibeNewFeatures() {
+  if (app._newFeaturesBooted) return;
+  app._newFeaturesBooted = true;
+
+  setupMessageContextMenu();
+  attachMessageLongPress();
+  setupChatAttachButton();
+  setupImageUploadSheet();
+  setupProfileImageButtons();
+  setupCreatePostImage();
+  setupProfilePageButtons();
+  unlockAudioOnFirstTap();
+
+  console.log('[Vibe] ✨ New features booted (v2.2.0)');
+}
+
+window.bootVibeNewFeatures = bootVibeNewFeatures;
