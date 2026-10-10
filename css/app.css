@@ -2286,5 +2286,43 @@ html[data-theme="dark"] .about-link:active {
   .info-card-text,
   .legal-text {
     font-size: 12.5px;
-  }
+  }/* ============================================
+   CHAT ITEM MUTE + PIN ICONS
+============================================ */
+.chat-item.pinned {
+  background: linear-gradient(90deg, var(--bg-primary) 0%, rgba(37,99,235,0.08) 100%);
+}
+
+html[data-theme="dark"] .chat-item.pinned {
+  background: linear-gradient(90deg, var(--bg-primary) 0%, rgba(37,99,235,0.15) 100%);
+}
+
+.chat-item.muted .chat-item-preview {
+  opacity: 0.6;
+}
+
+.chat-pin-icon {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-secondary);
+  box-shadow: 0 2px 4px rgba(15,26,61,0.2);
+}
+
+.chat-mute-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+  margin-right: 4px;
+  vertical-align: middle;
+}
 }
