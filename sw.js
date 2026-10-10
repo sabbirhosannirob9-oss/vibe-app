@@ -4,8 +4,8 @@
    Offline caching + faster loads
 ============================================ */
 
-const CACHE_NAME = 'vibe-v2.1.4';
-const RUNTIME_CACHE = 'vibe-runtime-v2.1.4';
+const CACHE_NAME = 'vibe-v2.1.5';
+const RUNTIME_CACHE = 'vibe-runtime-v2.1.5';
 // Files to cache on install
 const PRECACHE_URLS = [
   '/',
@@ -41,7 +41,7 @@ const PRECACHE_URLS = [
   '/assets/icons/android-chrome-192x192.png',
   '/assets/icons/android-chrome-512x512.png',
   '/assets/icons/apple-touch-icon.png',
-  '/assets/icons/favicon.ico',
+  '/assets/icons/message.mp3',
   '/assets/icons/favicon-16x16.png',
   '/assets/icons/favicon-32x32.png'
 ];
