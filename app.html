@@ -91,7 +91,6 @@
     </div>
   </div>
 
-  <!-- Floating Create Post Button -->
   <button class="fab-create-post" id="fabCreatePost" aria-label="Create post">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -347,7 +346,7 @@
     </div>
 
     <p style="text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 16px 0;">
-      Vibe v2.1.0
+      Vibe v2.1.2
     </p>
 
   </div>
@@ -493,7 +492,7 @@
           <img src="assets/icons/android-chrome-192x192.png" alt="Vibe">
           <span>Vibe</span>
         </div>
-        <span>v2.1.0</span>
+        <span>v2.1.2</span>
       </div>
     </div>
 
@@ -555,7 +554,7 @@
 </nav>
 
 <!-- ============================================
-     CHAT ROOM (Full Screen)
+     CHAT ROOM
 ============================================ -->
 <div class="chat-room" id="chatRoom">
 
@@ -585,7 +584,6 @@
 
   <div class="chat-messages" id="chatMessages"></div>
 
-  <!-- Reply Preview Bar -->
   <div class="reply-preview-bar" id="replyPreviewBar" style="display: none;">
     <div class="reply-preview-icon">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -779,15 +777,13 @@
 </div>
 
 <!-- ============================================
-     CHAT MENU SHEET (Block/Report)
+     CHAT MENU SHEET (⋮ menu in chat room)
 ============================================ -->
 <div class="sheet-overlay" id="chatMenuSheet">
   <div class="sheet-modal">
     <div class="sheet-handle"></div>
 
-    <div class="sheet-options" id="chatMenuOptions">
-      <!-- Injected by JS -->
-    </div>
+    <div class="sheet-options" id="chatMenuOptions"></div>
 
     <button class="sheet-cancel" id="chatMenuCancel">Cancel</button>
   </div>
@@ -857,6 +853,49 @@
     </button>
 
     <button class="sheet-cancel" id="reportCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ============================================
+     ⭐ CHAT CONTEXT MENU SHEET (Long-press)
+============================================ -->
+<div class="sheet-overlay" id="chatContextMenu">
+  <div class="sheet-modal context-menu-modal">
+    <div class="sheet-handle"></div>
+
+    <!-- Chat header preview -->
+    <div class="context-chat-preview" id="contextChatPreview">
+      <div class="avatar" id="contextChatAvatar">S</div>
+      <div class="context-chat-info">
+        <div class="context-chat-name" id="contextChatName">Sayida</div>
+        <div class="context-chat-sub" id="contextChatSub">Say hi to start</div>
+      </div>
+    </div>
+
+    <!-- Menu options -->
+    <div class="sheet-options" id="chatContextOptions"></div>
+
+    <button class="sheet-cancel" id="chatContextCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ============================================
+     ⭐ USER PROFILE MODAL
+============================================ -->
+<div class="sheet-overlay" id="userProfileSheet">
+  <div class="sheet-modal profile-view-modal">
+
+    <!-- Close button -->
+    <button class="profile-view-close" id="userProfileClose" aria-label="Close">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+
+    <!-- Profile content (injected by JS) -->
+    <div class="profile-view-content" id="userProfileContent"></div>
+
   </div>
 </div>
 
